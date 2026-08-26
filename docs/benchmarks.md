@@ -1,0 +1,156 @@
+# Measured Benchmarks & Comparison Dataset (NVIDIA DGX Spark, 2026-08-27)
+
+**[English](benchmarks.md) | [中文](benchmarks.zh.md)**
+
+> Hardware: GB10 / 128 GB unified memory / 273 GB/s / 20-core ARM (10×Cortex-X925 + 10×A725)
+> Engine: llama.cpp qwen4exp branch (commit 035e22731, CUDA backend, GCC 13.3 aarch64)
+> Service: llama-server, OpenAI-compatible API, port 8889
+> Note: all numbers measured locally; rows marked "official" are unsloth-published data, everything else is measured
+
+---
+
+## 1. Quant-level panorama (official data + local verdict)
+
+| Level | Size | same_top_pct vs BF16 ↑ | mean_kld ↓ | Official total mem | Verdict @ 128 GB |
+|---|---|---|---|---|---|
+| UD-Q4_K_XL (4-bit) | 111.3 GB | 93.5% | 0.045 | 112 GB | ❌ over budget |
+| UD-IQ4_XS (4-bit) | 93.7 GB | 91.1% | 0.079 | 112 GB | ⚠️ marginal (~9 GiB left) |
+| **UD-Q3_K_XL (3-bit)** | **90.0 GB** | **90.4%** | 0.100 | **90 GB** | ✅✅ **chosen** |
+| UD-IQ3_XXS (3-bit) | 82.0 GB | 87.6% | 0.157 | 90 GB | ✅ alternative (less memory) |
+| UD-Q2_K_XL (2-bit) | 78.9 GB | 85.2% | 0.213 | 79 GB | ✅ more headroom, quality tradeoff |
+| UD-IQ1_M (1-bit) | 74.5 GB | 82.4% | 0.302 | 75 GB | ❌ quality collapse line |
+| UD-IQ1_S (1-bit) | 72.5 GB | 80.2% | 0.375 | 75 GB | ❌ smoke-test only |
+
+> Quality data source: unsloth's official Divergence-300@32 (per-token comparison vs BF16).
+> **Key takeaway: 3-bit is already in the high-quality zone (IQ3_XXS is only 3.5pp behind IQ4_XS), far from the 1-bit collapse line.**
+
+---
+
+## 2. Engine/backend comparison (same model, llama-bench measured)
+
+| Backend | Decode (tg64) | Relative | Note |
+|---|---|---|---|
+| **CUDA full offload (-ngl 999)** | **24.22 ± 0.12 t/s** | 1.0x | Production config, all layers on GPU |
+| CPU only (-ngl 0, 20 threads) | 1.90 t/s | 0.08x | GPU offload = **12.7×** |
+
+> Model identified as: qwen4exp A3B Q3_K - Medium, 83.80 GiB, 176.94B params
+
+---
+
+## 3. Context configuration comparison (three levels measured)
+
+| Config | n_ctx_slot | Server decode | Server prompt (short) | Memory used | Memory left |
+|---|---|---|---|---|---|
+| 32K | 32768 | 25.1-25.6 t/s | 73-93 tok/s | ~99 GiB | ~22 GiB |
+| 128K | 131072 | 19.9 t/s | 80.8 tok/s | ~93 GiB | ~28 GiB |
+| **262K (native max)** | **262144** | **22.1 t/s** | **36.5 tok/s** | **~102 GiB** | **~19 GiB** |
+
+**Two key findings**:
+
+1. **262K context costs only a few GB of extra memory** (32K→262K adds ~3 GiB of KV)
+   — the dividend of QSA sparse attention (fixed budget of 512 blocks/2048 tokens) + fixed GDN state; log confirms `kv_unified='true'`
+2. **Decode is almost unaffected by the window size** (19.9-25.6 t/s variance is normal), but **prompt processing slows markedly with larger windows** (80.8→36.5 tok/s):
+   - llama.cpp pre-allocates KV/index structures for the max context; per-token fixed overhead grows with the window (implementation layer)
+   - with genuinely long contexts the QSA indexer's search space doubles (architecture layer)
+
+---
+
+## 4. Speed detail (raw timings, server-measured)
+
+### 4.1 Smoke test (32K config, first request after model load)
+
+| Stage | Time | Speed |
+|---|---|---|
+| prompt eval | 760.55 ms / 56 tokens | 73.63 tok/s |
+| eval (decode) | 3088.34 ms / 80 tokens | 25.58 tok/s |
+| End-to-end | 3.86 s | — |
+
+### 4.2 Long generation (32K config, counting 200 tokens)
+
+| Stage | Time | Speed |
+|---|---|---|
+| prompt eval | 258.30 ms / 24 tokens | 92.92 tok/s |
+| eval (decode) | 7921.65 ms / 200 tokens | 25.12 tok/s |
+| End-to-end | 8.3 s | 24.1 tok/s (incl. prefill) |
+
+### 4.3 Short request @ 128K config
+
+| Stage | Time | Speed |
+|---|---|---|
+| prompt eval | 226.11 ms / 19 tokens | 84.03 tok/s |
+| decode | — | 19.9 tok/s |
+
+### 4.4 Short request @ 262K config
+
+| Stage | Time | Speed |
+|---|---|---|
+| prompt eval | — | 36.5 tok/s |
+| decode | — | 22.1 tok/s |
+
+---
+
+## 5. Speculative decoding comparison (all measured; 24 t/s is the current ceiling)
+
+| Method | Measured decode | Acceptance | Active? | Failure reason |
+|---|---|---|---|---|
+| Baseline (no speculation) | 24.2 t/s | — | — | — |
+| ngram-simple | 24.8 t/s | 25.6% (11/43) | ✅ active | only useful for repetitive text |
+| draft-dflash | 24.0 t/s | no stats | ❌ silent fallback | GGUF lacks DND draft structure |
+| draft-dspark | 24.1 t/s | no stats | ❌ silent fallback | same |
+| draft-mtp | n/a | — | ❌ | GGUF has no MTP head (0/1224 tensors) |
+| 0.2B external draft | 24.1 t/s | no stats | ❌ | untrained, acceptance ≈ 0 |
+
+> Full analysis (mechanism/math/causal chain/unlock roadmap) in **speculative-analysis.md**
+
+---
+
+## 6. Memory breakdown
+
+| Item | Value |
+|---|---|
+| Model weights (mmap) | ~90 GB |
+| KV/state (262K config) | ~4-6 GB |
+| Runtime/system/page cache | ~8-10 GB |
+| Peak (262K) | ~102 / 128 GB |
+| Available while serving | ~19-22 GiB |
+
+---
+
+## 7. Comparison with reference data (27B precedent on the same machine)
+
+| Model | Engine/method | Decode speed |
+|---|---|---|
+| Qwen3.8-27B NVFP4 | SGLang + DFlash2 speculation (k=12) | **55.3 t/s** |
+| Qwen3.8-27B NVFP4 | SGLang no speculation (bandwidth limit 273GB/s ÷ 20.4GB) | ~13.4 t/s |
+| Qwen3.8-Flash-Next 180B | llama.cpp no speculation (this machine) | **22-24 t/s** |
+
+> Reference: Flash-Next's no-speculation measurement is already ~2× the 27B no-speculation bandwidth limit (6B active × smaller weights);
+> if MTP speculation lands (1.5-2.5×), expect 30-50 t/s, clearly beating the 27B+DFlash2 combo.
+
+---
+
+## 8. Reproducible methodology
+
+```bash
+# Decode baseline (run llama-bench with the server stopped to avoid loading two model copies)
+llama-bench -m model.gguf -ngl 999 -t 20 -p 0 -n 64 -r 2
+
+# Server-side speed: the timings field of the API response
+curl -s http://127.0.0.1:8889/v1/chat/completions \
+  -d '{"messages":[{"role":"user","content":"..."}],"max_tokens":200}' \
+  | python3 -c "import json,sys; print(json.load(sys.stdin)['timings'])"
+
+# Speculation tests: separate port + small context (don't disturb production)
+llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --jinja
+
+# Memory: free -h (while serving)
+```
+
+---
+
+## 9. Summary
+
+1. **UD-Q3_K_XL is the best value on a 128 GB machine** (90.4% quality / 90 GB memory / ample headroom)
+2. **262K context is effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
+3. **22-24 t/s decode is the current ceiling**; bottlenecks are PLE lookup latency + serial GDN + small MoE GEMMs
+4. **Speedup path: MTP self-speculation (1.5-2.5×) → SGLang DFlash2 (2-4×)**; prereqs tracked in mtp-tracker.md
