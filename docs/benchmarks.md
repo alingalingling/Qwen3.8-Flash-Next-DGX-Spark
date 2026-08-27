@@ -102,19 +102,24 @@
 | draft-mtp | n/a | — | ❌ | GGUF has no MTP head (0/1224 tensors) |
 | 0.2B external draft | 24.1 t/s | no stats | ❌ | untrained, acceptance ≈ 0 |
 
-### 5.1 IQ3_XXS full benchmark (2026-08-27 night, mtp_bench_safe.sh, ctx 16384)
+### 5.1a Full comparison table (2026-08-28 final, IQ3_XXS, ctx 8192-16384, same 3 tasks)
 
-| Task | IQ3 baseline | IQ3 + ngram-mod | Notes |
-|---|---:|---:|---|
-| A: counting 200 tokens (novel output) | 26.2 t/s | 26.1 t/s | ngram drafts only from context; expected no gain |
-| B: prose 150 tokens | 25.4 t/s | 26.1 t/s | no gain (expected) |
-| **C: code copy-edit 500 tokens (copy-heavy)** | **25.0 t/s** | **58.7 t/s** | **+135% (2.35x)** |
-| prompt (test C) | 387.2 tok/s | 386.7 tok/s | unaffected by speculation |
+| Setup | A: counting 200 | B: prose 150 | C: code copy-edit 500 | Extra memory |
+|---|---:|---:|---:|---:|
+| IQ3 baseline | 26.2 t/s | 25.4 t/s | 25.0 t/s | 0 |
+| + ngram-mod | 26.1 | 26.1 | 58.7 (+135%) | **0 (free)** |
+| + **ngram-map-k** | 26.5 | 27.0 | **82.4** (+230%) | **0 (free)** |
+| + **ngram-map-k4v** | 27.8 | 27.8 | **84.2** (+237%) | **0 (free)** |
+| + MTP (dzannotti head, `-md`) | 57.3 | 25.2 | 54.6 | ~3 GB |
+| + MTP + ngram-mod | 58.1 | 29.6 | 83.0 | ~3 GB |
+| + **MTP + ngram-map-k4v** | **57.7** | **27.9** | **108.4** 🚀🚀 (+334%) | ~3 GB |
+| + MTP (embedded head, merge script) | 56.3 | — | 53.6 | ~2.5 GB |
 
-> **ngram-mod key data**: draft acceptance = 0.56641 (145/256), mean draft length **37.25 tokens**
-> — long-span acceptance is the mechanism (0xBakeer): in top-10/512 MoE a small draft model cannot
-> amortize weight reads, but ngram-mod accepts 37-60 token spans, amortizing over the verify step.
-> **Zero extra memory** (no draft model); speculation is exact (every token verified, output unchanged).
+> **ngram-variant discovery (2026-08-28)**: map-k/map-k4v token mapping raises draft acceptance
+> from mod's 0.566 to **0.849** (mean len 37→42), code copy 58.7 → 82-84 t/s — **+40% free**;
+> **MTP+map-k4v stacked = 108.4 t/s = 4.3x baseline**, currently the fastest single-machine config
+> (code-type). ngram-mod: acc 0.56641 / len 37.25; map-k4v: acc 0.849 / len 41.75; MTP+k4v: acc
+> 0.86 / len 14.64. Speculation is exact (every token verified, output unchanged).
 
 ### 5.2 MTP (dzannotti official route) status
 

@@ -174,6 +174,7 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 | 方案 | 需要什么 | 实测收益 | 状态 |
 |---|---|---|---|
 | **ngram-mod** | 内置,零成本 | 代码复制 58.7 t/s(+135%) | ✅ 已解锁 |
+| **ngram-map-k / map-k4v** | 内置,零成本 | 代码复制 **82.4 / 84.2 t/s**(+230%,接受率 0.849) | ✅ 已解锁(2026-08-28,比 mod 再快 40%) |
 | **MTP(dzannotti 头)** | 2.44GB 头 + bea3b12d 验证树补丁 | 数数 57.3 / 代码 54.6 | ✅ 已解锁 |
 | **MTP + ngram-mod 叠加** | 同上组合 | 代码复制 **83.0 t/s**(+232%) | ✅ 已解锁 |
 | Q4_K_XL + PLE-offload + 组合投机 | 下载 111GB + PLE 卸载参数 | 代码 70.1 t/s(质量 93.5%) | ✅ 已解锁(⚠️仅 8K) |
@@ -208,13 +209,13 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 
 **当前推荐生产配置**(代码/agentic 场景):
 ```bash
-# 方案 A(推荐,零内存增量):ngram-mod
-llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-mod --jinja
+# 方案 A(推荐,零内存增量):ngram-map-k4v(2026-08-28 起替代 ngram-mod)
+llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-map-k4v --jinja
 
-# 方案 B(最强,代码复制 83 t/s):MTP + ngram-mod 叠加(需验证树 + MTP 头)
+# 方案 B(最强,代码复制 108 t/s):MTP + ngram-map-k4v 叠加(需验证树 + MTP 头)
 LLAMA_ATTN_ROT_DISABLE=1 llama-server -m model.gguf \
   -md MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
   -ngl 999 -fa on -ctk q8_0 -ctv q8_0
 ```
 

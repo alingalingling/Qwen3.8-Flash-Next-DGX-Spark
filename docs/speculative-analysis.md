@@ -152,6 +152,7 @@ Engine execution path (incomplete then):
 | Method | Requires | Measured gain | Status |
 |---|---|---|---|
 | **ngram-mod** | built-in, zero cost | code copy 58.7 t/s (+135%) | ✅ unlocked |
+| **ngram-map-k / map-k4v** | built-in, zero cost | code copy **82.4 / 84.2 t/s** (+230%, acc 0.849) | ✅ unlocked (2026-08-28, +40% over mod) |
 | **MTP (dzannotti head)** | 2.44GB head + bea3b12d verified-tree patch | counting 57.3 / code 54.6 | ✅ unlocked |
 | **MTP + ngram-mod stacked** | the two above | code copy **83.0 t/s** (+232%) | ✅ unlocked |
 | Q4_K_XL + PLE-offload + stacked | download 111GB + PLE-offload flags | code 70.1 t/s (93.5% quality) | ✅ unlocked (⚠️ 8K only) |
@@ -189,13 +190,13 @@ reach 58-83 t/s by parallelizing the verify step, but the per-token latency sour
 
 **Recommended production configs** (code/agentic workloads):
 ```bash
-# Option A (recommended, zero extra memory): ngram-mod
-llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-mod --jinja
+# Option A (recommended, zero extra memory): ngram-map-k4v (since 2026-08-28, replaces ngram-mod)
+llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-map-k4v --jinja
 
-# Option B (strongest, 83 t/s code copy): MTP + ngram-mod stacked (needs verified tree + MTP head)
+# Option B (strongest, 108 t/s code copy): MTP + ngram-map-k4v stacked (needs verified tree + MTP head)
 LLAMA_ATTN_ROT_DISABLE=1 llama-server -m model.gguf \
   -md MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
   -ngl 999 -fa on -ctk q8_0 -ctv q8_0
 ```
 
