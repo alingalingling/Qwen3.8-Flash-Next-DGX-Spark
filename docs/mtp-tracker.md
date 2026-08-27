@@ -9,7 +9,7 @@
 
 | Item | Status |
 |---|---|
-| llama.cpp qwen4exp PR (#27742) | open, mergeable; **42 commits**, still no MTP commit; author WIP |
+| llama.cpp qwen4exp PR (#27742) | open, mergeable; **54 commits**, still no MTP commit; author WIP |
 | Predecessor PR #27739 | closed, but **already includes MTP + PLE-offload implementation**; community reminded the author to reference it |
 | **dzannotti MTP head** ([repo](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF)) | **BREAKTHROUGH**: standalone `MTP-Q4_K_M.gguf` (2.44 GB, standard quant, any backend) + `qwen4exp-mtp-draft-head.patch` (459 lines, reconciled PR #27739 MTP graph + converter `--mtp` export) |
 | **Local build (this machine)** | patch applied **cleanly** on our qwen4exp branch (baseline `bea3b12d` matches the patch's target tree); **rebuilt successfully** — `llama-server` now supports `--spec-type draft-mtp` (build 2026-08-27 19:16) |
@@ -88,7 +88,7 @@ convenience is the point, not speed.
 1. ✅ IQ3_XXS (82 GB) downloaded → benchmark chain done (IQ3 baseline / ngram-mod / official MTP head / Q3_K_XL baseline)
 2. ✅ MTP-Q4_K_M head (2.44 GB) downloaded; verified-tree rebuild OK; all MTP forms measured (table above)
 3. ✅ merge-mtp-shard.py injected the head into IQ3_XXS (UD-IQ3_XXS-MTP/, 4 shards), verified working
-4. ⏳ Q4_K_XL (111 GB) downloading → test 0xBakeer NVMe-PLE recipe (`-ot per_layer_token_embd=CPU -lm mmap` + ngram-mod)
+4. ✅ Q4_K_XL (111 GB) downloaded + 0xBakeer NVMe-PLE recipe measured (82GB, 70.1 t/s, ⚠️ 8K window only)
 5. ❌ cafe-llama.cpp fork route permanently abandoned (twice OOM, overhead far beyond estimate)
 
 ## Monitor signals (tracked by monitor.py in this repo)

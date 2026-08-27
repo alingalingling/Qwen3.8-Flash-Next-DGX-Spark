@@ -9,7 +9,7 @@
 
 | 项 | 状态 |
 |---|---|
-| llama.cpp qwen4exp PR(#27742)| open、可合并;**42 commits,仍无 MTP 提交**;作者 WIP |
+| llama.cpp qwen4exp PR(#27742)| open、可合并;**54 commits,仍无 MTP 提交**;作者 WIP |
 | 前身 PR #27739 | closed,但**已含 MTP + PLE 卸载实现**,社区已提醒作者参考 |
 | **dzannotti MTP 头**([仓库](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF))| **重大突破**:独立 `MTP-Q4_K_M.gguf`(2.44GB,标准量化,任意后端)+ `qwen4exp-mtp-draft-head.patch`(459 行,PR #27739 MTP 图调和版 + converter `--mtp` 导出) |
 | **本机构建** | 补丁在本机 qwen4exp 分支(基线 bea3b12d 与补丁目标树一致)**干净应用,重编译成功**——llama-server 现支持 `--spec-type draft-mtp`(2026-08-27 19:16 构建) |
@@ -79,7 +79,7 @@ LLAMA_ATTN_ROT_DISABLE=1 llama-server \
 1. ✅ IQ3_XXS(82GB)下载完成 → 测速链完成(IQ3 基线 / ngram-mod / MTP 官方头 / Q3_K_XL 基线)
 2. ✅ MTP-Q4_K_M 头(2.44GB)下载完成,验证树重建成功,MTP 全形态实测完成(见上表)
 3. ✅ merge-mtp-shard.py 已给 IQ3_XXS 内嵌 MTP 头(UD-IQ3_XXS-MTP/,4 分片),实测可用
-4. ⏳ Q4_K_XL(111GB)下载中 → 测 0xBakeer NVMe-PLE 方案(`-ot per_layer_token_embd=CPU -lm mmap` + ngram-mod)
+4. ✅ Q4_K_XL(111GB)已下载 + 0xBakeer NVMe-PLE 方案实测完成(82GB、70.1 t/s,⚠️ 仅 8K 窗口)
 5. ❌ cafe-llama.cpp fork 路线永久放弃(两次爆内存死机,增量远超估算)
 
 ## 监控信号(仓库内 monitor.py 已跟踪)

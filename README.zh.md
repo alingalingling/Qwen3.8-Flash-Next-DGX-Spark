@@ -14,8 +14,9 @@
 > 本项目创建于 **Qwen3.8-Flash-Next 开源发布当天(2026-08-26)**,所有部署、实测与结论均基于**当时社区生态的最新状态**:
 > llama.cpp qwen4exp 支持(PR #27742 分支)、unsloth Dynamic 3.0 全部量化档位、当时已出现的全部推理引擎与量化仓库。
 >
-> 模型发布后的生态仍在快速繁荣:llama.cpp 官方支持即将合并、**MTP 投机解码现已触手可及**(独立 MTP 草稿头 + 补丁已发布且本机构建成功——见 docs/mtp-tracker.zh.md)、
-> Baekpica 混合量化(含 SSD-PLE 方案)与全量 NVFP4 正在验证与发布中。
+> 模型发布后的生态仍在快速繁荣:llama.cpp 官方支持即将合并、**MTP 投机解码已在本机实测打通**(独立 MTP 草稿头 + 补丁,见 docs/mtp-tracker.zh.md)、
+> **投机提速已全面解锁**(ngram-mod 免费 +135%,MTP+ngram-mod 叠加 +232%,见 docs/speculative-analysis.zh.md)、
+> Baekpica 混合量化(含 SSD-PLE 方案)与全量 NVFP4 仍在验证中。
 > **因此本项目将持续更新**——随生态演进,README 结论、docs 实测数据、工具脚本与路线图会同步迭代,
 > 建议关注本仓库获取 Flash-Next 单机部署的最新方案。
 
@@ -25,9 +26,9 @@
 并把整个过程(怎么装、多快、卡在哪、怎么提速)开源。**
 
 - **部署** ： [docs/deploy_playbook.zh.md](docs/deploy_playbook.zh.md):部署手册。从下载、编译到启动的完整命令,版本能否装入的数据信息。
-- **真实数据**：  [docs/benchmarks.zh.md](docs/benchmarks.zh.md):我们实测的全部对比数字——7 个量化档位怎么选、GPU 比 CPU 快多少倍、32K/128K/262K 上下文各是什么速度、内存各占多少,连每次测试的原始耗时记录都在里面。
-- **让它更快?** ： [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md):投机解码(让生成变快的技术)的五条路——ngram / DFlash / DSpark / MTP / 小草稿——我们**全部实测了一遍**,告诉你为什么现在最快只有 24 t/s、瓶颈在哪、未来哪个方案有希望到 40-60 t/s、什么时候能解锁。
-- **想跟进加速进展?** ：看 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md):MTP 头(投机加速的关键部件)为什么被量化版删掉了、怎么把它装回去、llama.cpp 的支持进度,以及三个"可以动手了"的信号。
+- **真实数据**：  [docs/benchmarks.zh.md](docs/benchmarks.zh.md):我们实测的全部对比数字——10 个量化档位怎么选、GPU 比 CPU 快多少倍、32K/128K/262K 上下文各是什么速度、内存各占多少、投机方案全对比,连每次测试的原始耗时记录都在里面。
+- **让它更快?** ： [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md):投机解码(让生成变快的技术)的五条路——ngram / DFlash / DSpark / MTP / 小草稿——我们**全部实测了一遍**:"24 t/s 天花板"如何被打破(ngram-mod 58.7 / MTP 57.3 / 叠加 **83.0 t/s**)、瓶颈在哪、最终生产配方是什么。
+- **想跟进加速进展?** ：看 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md):MTP 头(投机加速的关键部件)为什么被量化版删掉了、怎么把它装回去(dzannotti 头 + 验证树补丁,本机已实测)、llama.cpp 的支持进度,以及剩余"可以动手了"的信号。
 - **想直接开跑?** ：用 `scripts/` 下的工具:`run_qwen38_q3.sh` 一键启停服务,`probe_mtp.py` 3 秒检查你的 GGUF 能不能投机,`monitor.py` 帮你盯着 HF 上有没有新版本。
 
 ## 背景
@@ -37,17 +38,19 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 官方验证环境为双卡 GB300/B300,本仓库证明:**单台 DGX Spark 即可部署其量化版**。
 
 本仓库记录并开源了在 **单台 NVIDIA DGX Spark(GB10,128 GB 统一内存)** 上部署它的
-全部工具与实测数据——包括目前问题所在(MTP 缺失)和解决方案。
+全部工具与实测数据——包括曾经的瓶颈(MTP 缺失)与最终解决方案(投机全面解锁)。
 
-## 部署结果(实测)
+## 部署结果(实测,2026-08-28 终版)
 
 | 项 | 值 |
 |---|---|
 | 模型 | unsloth UD-Q3_K_XL(90 GB,质量保持 90.4%) |
-| 引擎 | llama.cpp qwen4exp 分支(PR #27742) |
+| 引擎 | llama.cpp qwen4exp 分支(PR #27742)+ MTP 补丁验证树 |
 | 上下文 | **262K(原生最大)** |
-| 解码速度 | **22-24 t/s**(GPU 卸载,纯 CPU 仅 1.9 t/s) |
-| 内存 | ~102 / 128 GB |
+| **解码速度(生产配方)** | **代码类 78.9 t/s**(MTP+ngram-mod 组合投机;旧配置 24 t/s 的 3.3 倍) |
+| **内存(生产配方)** | **70 / 128 GB**(NVMe-PLE 卸载后;旧配置 102GB) |
+
+> 早期实测(2026-08-27 白天):裸跑 22-24 t/s(GPU 卸载,纯 CPU 仅 1.9 t/s),102GB 内存——已由生产配方取代。
 
 ## 投机提速(2026-08-27 夜实测)
 

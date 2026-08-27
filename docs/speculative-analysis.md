@@ -129,36 +129,52 @@ When an untrained draft guesses k tokens, the target almost always **rejects the
 
 ---
 
-## 5. Causal chain: why 24 t/s is the current ceiling
+## 5. Causal-chain evolution: from the "24 t/s ceiling" to full unlock (history)
+
+**The 2026-08-27 daytime causal chain** (both ends of speculation broken then; the "24 t/s ceiling"
+conclusion was overturned by that night's measurements):
 
 ```
 Speculation = draft source + engine execution path
 
-Draft source (all three paths broken):
-  ├─ MTP self-spec  → GGUF has no MTP head (stripped by unsloth, measured)      ❌
-  ├─ DFlash/DSpark  → GGUF has no DND draft tensors (flags accepted, silent)    ❌
-  └─ External draft → no trained same-tokenizer small model (0.2B untrained)    ❌
-  (ngram needs no model, but only works on repetitive text, ≈0 for general)     ⚠️
+Draft source (all three paths were broken):
+  ├─ MTP self-spec  → GGUF has no MTP head (stripped by unsloth, measured)      ❌ → solved: dzannotti head
+  ├─ DFlash/DSpark  → GGUF has no DND draft tensors (flags accepted, silent)    ❌ → still none
+  └─ External draft → no trained same-tokenizer small model (0.2B untrained)    ❌ → still none (and pointless in MoE)
+  (ngram-simple only works on repetitive text, ≈0 for general)                  ⚠️ → solved: ngram-mod long spans
 
-Engine execution path (incomplete):
-  └─ llama.cpp qwen4exp MTP load/speculate = WIP (PR #27742 has no MTP commit)  ❌
-
-Conclusion: a matter of time, not of hardware
+Engine execution path (incomplete then):
+  └─ llama.cpp qwen4exp MTP load/speculate = WIP (PR #27742 has no MTP commit)  ❌ → solved: bea3b12d tree + patch
 ```
+
+**What unlocked that night (all measured locally)**:
+
+| Method | Requires | Measured gain | Status |
+|---|---|---|---|
+| **ngram-mod** | built-in, zero cost | code copy 58.7 t/s (+135%) | ✅ unlocked |
+| **MTP (dzannotti head)** | 2.44GB head + bea3b12d verified-tree patch | counting 57.3 / code 54.6 | ✅ unlocked |
+| **MTP + ngram-mod stacked** | the two above | code copy **83.0 t/s** (+232%) | ✅ unlocked |
+| Q4_K_XL + PLE-offload + stacked | download 111GB + PLE-offload flags | code 70.1 t/s (93.5% quality) | ✅ unlocked (⚠️ 8K only) |
+| SGLang + DFlash2 | full NVFP4 + mature runtime | — | ⏳ runtime unpublished, watchlisting |
 
 ---
 
-## 6. Bottleneck analysis: why 24 t/s instead of the bandwidth limit (~100 t/s)
+## 6. Bottleneck analysis: the three fixed-latency sources behind bare 22-24 t/s (still present after the unlock)
 
 Theory: per token read 6B active experts × ~0.45 B ≈ 2.7 GB ÷ 273 GB/s ≈ **~100 t/s**
 
-Measured 24 t/s; the gap comes from three fixed-latency sources:
+Bare 24 t/s; the gap comes from three fixed-latency sources. **After the unlock, code-type tasks
+reach 58-83 t/s by parallelizing the verify step, but the per-token latency sources remain:**
 
-| Latency source | Mechanism | Optimizability |
+| Latency source | Mechanism | Status |
 |---|---|---|
-| PLE n-gram random lookups | 51B table; every lookup is a cache-missing random access (~100-200ns) | architecture-inherent, hard |
+| PLE n-gram random lookups | 51B table; every lookup is a cache-missing random access | mitigated by NVMe-PLE offload + table warm-up; residual is architectural |
 | GDN recurrent state | serial per-token update, cannot parallelize | architecture-inherent |
-| Small MoE GEMMs | expert intermediate dim is only 640; each GEMM is tiny; GPU launch overhead dominates | depends on engine kernel fusion |
+| Small MoE GEMMs | expert intermediate dim is only 640; each GEMM is tiny; GPU launch overhead dominates | canreuse patch enables CUDA graph reuse (graphs reused 0→52+, +2.8%) |
+
+> Note: 0xBakeer's "small draft model is useless" analysis also explains why speculation must go
+> long-span (ngram-mod mean 37-60 tokens) instead of small-step drafts: in top-10/512 MoE, k draft
+> tokens activate up to k×10 different experts, weight traffic scales with k, nothing to amortize.
 
 ---
 
