@@ -202,10 +202,10 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 
 | 触发条件 | 需要什么 | 预期收益 | 当前状态 |
 |---|---|---|---|
-| **ngram-mod 投机** | 无需任何新东西(llama.cpp 内置) | **复制型任务 2.3x**(58.7 t/s) | ✅ **已解锁**——零内存增量,输出逐 token 验证不变 |
+| **ngram-map-k4v 投机** | 无需任何新东西(llama.cpp 内置) | **复制型任务 3.4x**(84.2 t/s) | ✅ **已解锁**——零内存增量,输出逐 token 验证不变(2026-08-28 起替代 ngram-mod) |
 | **MTP 自投机** | dzannotti 独立 MTP 头 + bea3b12d 验证树补丁 | **规律性输出 2.2x**(57.3 t/s) | ✅ **已解锁**——035e22731 树段错误,须用验证树 |
-| **MTP + ngram-mod 叠加** | 同上两者组合 | **复制型任务 3.3x**(83.0 t/s) | ✅ **已解锁**——`--spec-type draft-mtp,ngram-mod` |
-| **SGLang + DFlash2** | 全量 NVFP4 检查点(≤101 GB)+ SGLang qwen4_exp 支持成熟 | 2-4x(27B 先例 55 t/s) | ⏳ provsalt 全量 NVFP4 **101.7GB 已出现**(含 MTP 头),临界可装,观察中 |
+| **MTP + ngram-map-k4v 叠加** | 同上两者组合 | **复制型任务 4.3x**(108.4 t/s) | ✅ **已解锁**——`--spec-type draft-mtp,ngram-map-k4v` |
+| **SGLang/vLLM + NVFP4** | 单机 NVFP4 方案(Felliks/MaxLaurence PLE 落盘 / starkweatherdigital 109GB 全量化) | 单流 17.9-42 / 四流聚合 93-132 | ⏳ 单机跑通但内存 109-120GB 临界;全量化权重上传中 |
 
 **当前推荐生产配置**(代码/agentic 场景):
 ```bash

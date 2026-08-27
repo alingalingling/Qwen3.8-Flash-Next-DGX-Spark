@@ -1,17 +1,16 @@
-# Qwen3.8-Flash-Next UD-Q3_K_XL llama-server 用户级 systemd 服务
+# Qwen3.8-Flash-Next 生产配方 systemd 服务(2026-08-28 终版)
 # 安装: mkdir -p ~/.config/systemd/user && cp qwen38-q3.service ~/.config/systemd/user/
 #        systemctl --user daemon-reload
 #        systemctl --user enable --now qwen38-q3
 # 注意: 如服务需开机自启,先执行 loginctl enable-linger $USER
 [Unit]
-Description=Qwen3.8-Flash-Next UD-Q3_K_XL (llama-server, qwen4exp PR branch)
+Description=Qwen3.8-Flash-Next production (Q3+PLE-offload+MTP+ngram-map-k4v, 262K, parallel 2)
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=/home/lingyan/llama.cpp/build/bin/llama-server -m /home/lingyan/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf --host 0.0.0.0 --port 8889 --ctx-size 262144 -ngl 999 -t 20 --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
+Environment=LLAMA_ATTN_ROT_DISABLE=1
+ExecStart=/home/lingyan/llama-mtp-verified/build/bin/llama-server -m /home/lingyan/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf -lm mmap -ot per_layer_token_embd=CPU -md /home/lingyan/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 --host 0.0.0.0 --port 8889 --ctx-size 262144 --parallel 2 -ngl 999 -t 20 -fa on -ctk q8_0 -ctv q8_0 --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
 Restart=on-failure
-RestartSec=10
-
 [Install]
 WantedBy=default.target

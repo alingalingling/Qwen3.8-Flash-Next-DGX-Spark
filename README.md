@@ -22,7 +22,7 @@ In one sentence: **we deployed a 180B model that officially requires dual GB300 
 
 - **Deploy it**: [docs/deploy_playbook.md](docs/deploy_playbook.md) — deployment manual: complete commands from download/compile to launch, plus the data for checking whether a version fits your machine.
 - **Real numbers**: [docs/benchmarks.md](docs/benchmarks.md) — all measured comparisons: how to pick among 10 quant levels, how much faster GPU is than CPU, speeds at 32K/128K/262K context, memory footprints, and raw per-test timings.
-- **Make it faster?**: [docs/speculative-analysis.md](docs/speculative-analysis.md) — all five speculative-decoding paths (ngram / DFlash / DSpark / MTP / small draft) **measured end to end**: how the "24 t/s ceiling" was broken (ngram-mod 58.7, MTP 57.3, stacked **83.0 t/s**), where the bottlenecks are, and the final production recipe.
+- **Make it faster?**: [docs/speculative-analysis.md](docs/speculative-analysis.md) — all five speculative-decoding paths (ngram / DFlash / DSpark / MTP / small draft) **measured end to end**: how the "24 t/s ceiling" was broken (ngram-map-k4v 84.2, MTP 57.3, **MTP+map-k4v stacked 108.4 t/s**), where the bottlenecks are, and the final production recipe.
 - **Track acceleration progress**: see [docs/mtp-tracker.md](docs/mtp-tracker.md): why the MTP head (the key to speculation speedup) was stripped from the quant, how to inject it back (dzannotti head + verified-tree patch, measured on this machine), llama.cpp's support status, and the remaining "go" signals.
 - **Run it now** → use the `scripts/` tools: `run_qwen38_q3.sh` starts/stops the server, `probe_mtp.py` checks in 3 seconds whether your GGUF can speculate, `monitor.py` watches HF for new releases.
 
@@ -40,7 +40,7 @@ This repo documents and open-sources all tools and measurements for deploying it
 | Model | unsloth UD-Q3_K_XL (90 GB, 90.4% quality retention) |
 | Engine | llama.cpp qwen4exp branch (PR #27742) + MTP-patch verified tree |
 | Context | **262K (native max)** |
-| **Decode speed (production recipe)** | **78.9 t/s code-type** (MTP+ngram-mod stacked; 3.3x the old 24 t/s) |
+| **Decode speed (production recipe)** | **78.9 t/s code-type single / 77.5 aggregate (2 concurrent)** (MTP+ngram-map-k4v stacked; 3.3x the old 24 t/s) |
 | **Memory (production recipe)** | **70 / 128 GB** (after NVMe-PLE offload; was 102 GB) |
 
 > Earlier measurement (2026-08-27 daytime): bare 22-24 t/s (GPU offload; CPU-only 1.9 t/s), 102 GB — superseded by the production recipe.
@@ -146,7 +146,7 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 ## Roadmap
 
 - [ ] llama.cpp PR #27742 merge (upstream; now 54 commits, still no MTP commit)
-- [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-mod = 83 t/s)
+- [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-map-k4v = 108.4 t/s)
 - [x] 0xBakeer NVMe-PLE recipe verified (Q4_K_XL at 82 GB; final production recipe Q3 = 78.9 t/s @262K / 70 GB)
 - [ ] Evaluate Baekpica mixed-quant once validation gates pass (ds4 runtime)
 - [ ] Full NVFP4 appeared: starkweatherdigital (109GB, PLE also 4-bit, public vLLM patches + prebuilt image, measured 24.6 t/s MTP on DGX Spark) — weights still uploading, memory-critical, controlled evaluation; also Felliks/MaxLaurence (PLE-on-NVMe expert version, running on one Spark)

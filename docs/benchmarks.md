@@ -157,7 +157,7 @@
 - ⚠️ **cafe-llama.cpp fork permanently abandoned**: twice blew memory loading MTP drafts (90GB and
   82GB main models), overhead far beyond the documented 10-15GB
 
-### 5.3 Cross-reference (2026-08-27 night)
+### 5.3 Window/quality cross-reference (2026-08-27 night; full speculation comparison in 5.1a)
 
 | Setup | Code copy-edit | Prose | Counting | Memory | Quality |
 |---|---:|---:|---:|---:|---:|
@@ -235,7 +235,17 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --j
 
 ---
 
-## 9. Summary (final 2026-08-27 night)
+## 9. Summary (final 2026-08-28)
+
+1. **🏆 Final production recommendation: Q3_K_XL + NVMe-PLE + MTP+ngram-map-k4v** (262K window, `--parallel 2` verified safe)
+   - Code copy **78.9 t/s single / 77.5 aggregate (2 concurrent)** = **3.3× the old config** (24 t/s); memory **70 GB** (was 102 GB), 51 GB headroom
+   - Command: deploy_playbook (Path A); warm the PLE table with warm_table.py after ready
+2. **🚀 Speculation fully unlocked (2026-08-28)**: ngram-map-k4v free code copy **84.2 t/s** (+237%, acc 0.849); **MTP+map-k4v stacked 108.4 t/s** (+334%, 4.3× baseline); prose 21.5-29.6 limited (gain = output predictability)
+3. **🚀 Concurrency works (correcting 0xBakeer)**: `--parallel 2` aggregates 93-104 t/s (8K) / 77.5 (262K), 0 assert crashes; 4 streams untested (memory allows)
+4. **🚀 Q4_K_XL runnable via NVMe-PLE**: 82 GB (official requirement 112 GB), 93.5% quality; +MTP+map-k4v code **70.1 t/s**; ⚠️ 8K short window only (incident 5)
+5. **262K context effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
+6. Full NVFP4 (starkweatherdigital 109GB) appeared, weights uploading; single-machine NVFP4 (Felliks/MaxLaurence) is memory-critical at 109-120GB
+7. **Memory iron rules**: one model, watchdogs, drop_caches, stepwise windows, no large window on Q4 — see §4.6/10.4
 
 1. **🏆 Final production recommendation: Q3_K_XL + NVMe-PLE + MTP+ngram-mod** (262K window)
    - Code copy **78.9 t/s** = **3.3× the old config** (24 t/s); memory **70 GB** (was 102 GB), headroom 51 GB

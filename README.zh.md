@@ -27,7 +27,7 @@
 
 - **部署** ： [docs/deploy_playbook.zh.md](docs/deploy_playbook.zh.md):部署手册。从下载、编译到启动的完整命令,版本能否装入的数据信息。
 - **真实数据**：  [docs/benchmarks.zh.md](docs/benchmarks.zh.md):我们实测的全部对比数字——10 个量化档位怎么选、GPU 比 CPU 快多少倍、32K/128K/262K 上下文各是什么速度、内存各占多少、投机方案全对比,连每次测试的原始耗时记录都在里面。
-- **让它更快?** ： [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md):投机解码(让生成变快的技术)的五条路——ngram / DFlash / DSpark / MTP / 小草稿——我们**全部实测了一遍**:"24 t/s 天花板"如何被打破(ngram-mod 58.7 / MTP 57.3 / 叠加 **83.0 t/s**)、瓶颈在哪、最终生产配方是什么。
+- **让它更快?** ： [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md):投机解码(让生成变快的技术)的五条路——ngram / DFlash / DSpark / MTP / 小草稿——我们**全部实测了一遍**:"24 t/s 天花板"如何被打破(ngram-map-k4v 84.2 / MTP 57.3 / **MTP+map-k4v 叠加 108.4 t/s**)、瓶颈在哪、最终生产配方是什么。
 - **想跟进加速进展?** ：看 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md):MTP 头(投机加速的关键部件)为什么被量化版删掉了、怎么把它装回去(dzannotti 头 + 验证树补丁,本机已实测)、llama.cpp 的支持进度,以及剩余"可以动手了"的信号。
 - **想直接开跑?** ：用 `scripts/` 下的工具:`run_qwen38_q3.sh` 一键启停服务,`probe_mtp.py` 3 秒检查你的 GGUF 能不能投机,`monitor.py` 帮你盯着 HF 上有没有新版本。
 
@@ -47,7 +47,7 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | 模型 | unsloth UD-Q3_K_XL(90 GB,质量保持 90.4%) |
 | 引擎 | llama.cpp qwen4exp 分支(PR #27742)+ MTP 补丁验证树 |
 | 上下文 | **262K(原生最大)** |
-| **解码速度(生产配方)** | **代码类 78.9 t/s**(MTP+ngram-mod 组合投机;旧配置 24 t/s 的 3.3 倍) |
+| **解码速度(生产配方)** | **代码类 78.9 t/s 单流 / 77.5 聚合(2 并发)**(MTP+ngram-map-k4v 组合投机;旧配置 24 t/s 的 3.3 倍) |
 | **内存(生产配方)** | **70 / 128 GB**(NVMe-PLE 卸载后;旧配置 102GB) |
 
 > 早期实测(2026-08-27 白天):裸跑 22-24 t/s(GPU 卸载,纯 CPU 仅 1.9 t/s),102GB 内存——已由生产配方取代。

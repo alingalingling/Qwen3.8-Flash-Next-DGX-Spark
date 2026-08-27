@@ -183,10 +183,10 @@ reach 58-83 t/s by parallelizing the verify step, but the per-token latency sour
 
 | Trigger | What's needed | Expected gain | Current status |
 |---|---|---|---|
-| **ngram-mod speculation** | nothing (built into llama.cpp) | **2.3× on copy-type tasks** (58.7 t/s) | ✅ **UNLOCKED** — zero extra memory; every token verified, output unchanged |
+| **ngram-map-k4v speculation** | nothing (built into llama.cpp) | **3.4× on copy-type tasks** (84.2 t/s) | ✅ **UNLOCKED** — zero extra memory; every token verified (since 2026-08-28, replaces ngram-mod) |
 | **MTP self-speculation** | dzannotti standalone MTP head + bea3b12d verified-tree patch | **2.2× on regular output** (57.3 t/s) | ✅ **UNLOCKED** — segfaults on 035e22731; must use the verified tree |
-| **MTP + ngram-mod stacked** | the two above combined | **3.3× on copy-type tasks** (83.0 t/s) | ✅ **UNLOCKED** — `--spec-type draft-mtp,ngram-mod` |
-| **SGLang + DFlash2** | full NVFP4 checkpoint (≤101 GB) + mature SGLang qwen4_exp support | 2-4× (27B precedent: 55 t/s) | ⏳ provsalt full NVFP4 **101.7 GB now exists** (with MTP head), critical fit, watchlisting |
+| **MTP + ngram-map-k4v stacked** | the two above combined | **4.3× on copy-type tasks** (108.4 t/s) | ✅ **UNLOCKED** — `--spec-type draft-mtp,ngram-map-k4v` |
+| **SGLang/vLLM + NVFP4** | single-machine NVFP4 (Felliks/MaxLaurence PLE-on-NVMe / starkweatherdigital 109GB full-quant) | 17.9-42 single / 93-132 4-stream | ⏳ runnable but 109-120GB memory; full-quant weights uploading |
 
 **Recommended production configs** (code/agentic workloads):
 ```bash
