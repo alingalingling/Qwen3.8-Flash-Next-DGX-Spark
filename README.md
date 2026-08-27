@@ -148,7 +148,7 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 - [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-mod = 83 t/s)
 - [x] 0xBakeer NVMe-PLE recipe verified (Q4_K_XL at 82 GB; final production recipe Q3 = 78.9 t/s @262K / 70 GB)
 - [ ] Evaluate Baekpica mixed-quant once validation gates pass (ds4 runtime)
-- [ ] Full NVFP4: provsalt (101.6 GB, PLE also NVFP4) / Lewfkrad W4-PLE / 4p89 all appeared, but runtimes are unpublished/unverified — not usable yet; triggers tracked in the plan doc §10.2
+- [ ] Single-Spark NVFP4 recipes appeared (Felliks/MaxLaurence: RadixArk + PLE-on-NVMe, SGLang, 32.7 t/s single / 93-132 aggregate) — memory-critical (120/128GB), not deployed yet; controlled evaluation
 
 ## Acknowledgements
 
