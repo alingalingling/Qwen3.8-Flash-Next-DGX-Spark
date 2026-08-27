@@ -86,7 +86,9 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 | Parameter check | 176.94B = 180B − 4B (MTP head removed) |
 | unsloth standalone MTP module | none (all 7 levels lack it) |
 
-**Verdict**: draft-mtp needs the model to carry an MTP head (4B params, 31 tensors). unsloth stripped it during quantization (saving ~2 GB), so **self-speculation is out of the question**. By contrast, the 27B GGUF **keeps** its MTP head — that's why a single flag speeds it up.
+**Verdict**: draft-mtp needs the model to carry an MTP head (4B params, 31 tensors). unsloth stripped it during quantization (saving ~2 GB), so **self-speculation is out of the question** *for the stripped GGUFs as-is*. By contrast, the 27B GGUF **keeps** its MTP head — that's why a single flag speeds it up.
+
+> **UPDATE (2026-08-27 night)**: the "as-is" caveat no longer applies. [dzannotti/Qwen3.8-Flash-Next-MTP-GGUF](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF) ships a **standalone MTP draft head** (`MTP-Q4_K_M.gguf`, 2.44 GB, standard quant) usable as `-md` next to any Flash-Next GGUF, plus a patch (`qwen4exp-mtp-draft-head.patch`) that adds the MTP graph to the qwen4exp branch — applied and built successfully on this machine (19:16, `--spec-type draft-mtp` supported). Author-measured on the same 128 GB class machine: **UD-Q4_K_XL 20.3 → 35.8 t/s (code), acceptance 0.90**. See [mtp-tracker.md](mtp-tracker.md) for run commands and the no-re-download injection script (`merge-mtp-shard.py`).
 
 ### 3.4 External small draft (draft-simple) — ❌ full experiment with the 0.2B tiny model
 

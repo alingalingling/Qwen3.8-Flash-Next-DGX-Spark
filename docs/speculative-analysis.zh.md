@@ -95,8 +95,15 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 | unsloth 仓库独立 MTP 模块 | 不存在(全 7 档均无)|
 
 **结论**:draft-mtp 需要模型自带 MTP 头(4B 参数,31 个张量)。unsloth 在量化时
-移除了 MTP 头(省 ~2 GB 空间),因此**自投机无从谈起**。对比:27B 的 GGUF
-**自带** MTP 头,这就是 sudoingX 一行 flag 就能提速的原因。
+移除了 MTP 头(省 ~2 GB 空间),因此**原样 GGUF 自投机无从谈起**。对比:27B 的 GGUF
+**自带** MTP 头,这就是一行 flag 就能提速的原因。
+
+> **更新(2026-08-27 夜)**:「原样」的限制已被打破。[dzannotti/Qwen3.8-Flash-Next-MTP-GGUF](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF)
+> 发布了**独立 MTP 草稿头**(`MTP-Q4_K_M.gguf`,2.44 GB,标准量化),可作为 `-md` 挂到任意
+> Flash-Next GGUF 旁;附补丁 `qwen4exp-mtp-draft-head.patch`(给 qwen4exp 分支加 MTP 图)—
+> 本机已干净应用并重编译成功(19:16,`--spec-type draft-mtp` 已支持)。作者在同规格
+> 128GB 机器实测:**UD-Q4_K_XL 20.3 → 35.8 t/s(code),接受率 0.90**。
+> 运行命令与免重下的注入脚本(`merge-mtp-shard.py`)见 [mtp-tracker.md](mtp-tracker.md)。
 
 ### 3.4 外部小草稿(draft-simple)— ❌ 0.2B 微型模型完整实验
 

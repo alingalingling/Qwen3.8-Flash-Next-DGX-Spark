@@ -23,7 +23,7 @@ In one sentence: **we deployed a 180B model that officially requires dual GB300 
 - **Deploy it**: [docs/deploy_playbook.md](docs/deploy_playbook.md) — deployment manual: complete commands from download/compile to launch, plus the data for checking whether a version fits your machine.
 - **Real numbers**: [docs/benchmarks.md](docs/benchmarks.md) — all measured comparisons: how to pick among 7 quant levels, how much faster GPU is than CPU, speeds at 32K/128K/262K context, memory footprints, and raw per-test timings.
 - **Make it faster?**: [docs/speculative-analysis.md](docs/speculative-analysis.md) — all five speculative-decoding paths (ngram / DFlash / DSpark / MTP / small draft) **measured end to end**: why 24 t/s is the current ceiling, where the bottlenecks are, which path may reach 40-60 t/s, and when it unlocks.
-- **Track acceleration progress** → see [docs/mtp-tracker.md](docs/mtp-tracker.md): why the MTP head (the key to speculation speedup) was stripped from the quant, how to inject it back, llama.cpp's support status, and three "go" signals.
+- **Track acceleration progress** ：see [docs/mtp-tracker.md](docs/mtp-tracker.md): why the MTP head (the key to speculation speedup) was stripped from the quant, how to inject it back, llama.cpp's support status, and three "go" signals.
 - **Run it now** → use the `scripts/` tools: `run_qwen38_q3.sh` starts/stops the server, `probe_mtp.py` checks in 3 seconds whether your GGUF can speculate, `monitor.py` watches HF for new releases.
 
 ## Background

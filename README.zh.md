@@ -27,8 +27,8 @@
 - **部署** ： [docs/deploy_playbook.zh.md](docs/deploy_playbook.zh.md):部署手册。从下载、编译到启动的完整命令,版本能否装入的数据信息。
 - **真实数据**：  [docs/benchmarks.zh.md](docs/benchmarks.zh.md):我们实测的全部对比数字——7 个量化档位怎么选、GPU 比 CPU 快多少倍、32K/128K/262K 上下文各是什么速度、内存各占多少,连每次测试的原始耗时记录都在里面。
 - **让它更快?** ： [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md):投机解码(让生成变快的技术)的五条路——ngram / DFlash / DSpark / MTP / 小草稿——我们**全部实测了一遍**,告诉你为什么现在最快只有 24 t/s、瓶颈在哪、未来哪个方案有希望到 40-60 t/s、什么时候能解锁。
-- **想跟进加速进展?** → 看 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md):MTP 头(投机加速的关键部件)为什么被量化版删掉了、怎么把它装回去、llama.cpp 的支持进度,以及三个"可以动手了"的信号。
-- **想直接开跑?** → 用 `scripts/` 下的工具:`run_qwen38_q3.sh` 一键启停服务,`probe_mtp.py` 3 秒检查你的 GGUF 能不能投机,`monitor.py` 帮你盯着 HF 上有没有新版本。
+- **想跟进加速进展?** ：看 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md):MTP 头(投机加速的关键部件)为什么被量化版删掉了、怎么把它装回去、llama.cpp 的支持进度,以及三个"可以动手了"的信号。
+- **想直接开跑?** ：用 `scripts/` 下的工具:`run_qwen38_q3.sh` 一键启停服务,`probe_mtp.py` 3 秒检查你的 GGUF 能不能投机,`monitor.py` 帮你盯着 HF 上有没有新版本。
 
 ## 背景
 
