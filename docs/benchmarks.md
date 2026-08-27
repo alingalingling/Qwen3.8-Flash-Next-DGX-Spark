@@ -172,7 +172,7 @@
 | **Q3_K_XL + PLE + MTP+ngram (262K, production window)** | **78.9** | 21.5 | — | **70 GB** | 90.4% |
 | 2×DGX Spark NVFP4 + MTP4 (community, tonyd2wild) | 50-55 t/s | ~33 | — | two machines | 4-bit class |
 
-**🏆 Final production recommendation (2026-08-27 night): Q3_K_XL + NVMe-PLE + MTP+ngram-mod**
+**🏆 Production recommendation (2026-08-27 night, historical — superseded by the 2026-08-28 map-k4v version, see §9)**: Q3_K_XL + NVMe-PLE + MTP+ngram-mod
 - Memory **70 GB (262K, was 102 GB)**, headroom 51 GB; code copy **78.9 t/s (262K) / 82.7 (8K)**
   = **3.3× the old config** (24 t/s)
 - All three windows (8K/128K/262K) verified; quality 90.4% unchanged (speculation verifies every token)
@@ -247,13 +247,3 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --j
 6. Full NVFP4 (starkweatherdigital 109GB) appeared, weights uploading; single-machine NVFP4 (Felliks/MaxLaurence) is memory-critical at 109-120GB
 7. **Memory iron rules**: one model, watchdogs, drop_caches, stepwise windows, no large window on Q4 — see §4.6/10.4
 
-1. **🏆 Final production recommendation: Q3_K_XL + NVMe-PLE + MTP+ngram-mod** (262K window)
-   - Code copy **78.9 t/s** = **3.3× the old config** (24 t/s); memory **70 GB** (was 102 GB), headroom 51 GB
-   - Command: see docs/mtp-tracker.md (Option B + PLE flags + warm_table.py warm-up)
-2. **🚀 ngram-mod breaks the "24 t/s ceiling"**: code copy/edit **25.0 → 58.7 t/s (+135%)**, zero extra memory, output verified token-by-token; prose stays ~26 t/s
-3. **🚀 MTP+ngram-mod stacked**: IQ3_XXS code copy **83.0 t/s (3.3×)**, counting 58.1, prose 29.6 (verified tree bea3b12d + dzannotti head)
-4. **🚀 Q4_K_XL is now runnable via NVMe-PLE**: 82 GB memory (official requirement 112 GB), 93.5% quality; +MTP+ngram-mod code copy **70.1 t/s (3.1×)**
-   - Tradeoff: speed-first → IQ3 stacked (83 t/s / 87.6%); quality-first → Q4 stacked (70.1 t/s / 93.5%)
-5. **262K context is effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
-6. **MTP tree compatibility**: segfaults on 035e22731; cafe fork permanently abandoned (2× OOM); verified tree bea3b12d + standalone/embedded head work
-7. Full NVFP4 (101.7 GB, with MTP head) now exists (provsalt) — critical fit, watchlisted

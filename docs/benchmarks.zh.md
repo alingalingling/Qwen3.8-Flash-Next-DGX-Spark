@@ -171,7 +171,7 @@
 | **Q3_K_XL + PLE + MTP+ngram(262K,生产窗口)** | **78.9** | 21.5 | — | **70 GB** | 90.4% |
 | 2×DGX Spark NVFP4 + MTP4(社区,tonyd2wild)| 50-55 t/s | ~33 | — | 双机 | 4-bit 级 |
 
-**🏆 2026-08-27 终版生产推荐:Q3_K_XL + NVMe-PLE + MTP+ngram-mod**
+**🏆 2026-08-27 生产推荐(历史,已被 2026-08-28 map-k4v 版取代,见 9 节)**:Q3_K_XL + NVMe-PLE + MTP+ngram-mod
 - 内存 **70GB(262K,原 102GB)**,余量 51GB;代码复制 **78.9 t/s(262K)/ 82.7(8K)**,是旧配置(24 t/s)的 **3.3 倍**
 - 三个窗口(8K/128K/262K)全部验证可用;质量 90.4% 不变(投机逐 token 验证,输出精确)
 
@@ -245,13 +245,3 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <方案> --j
 6. 全量化 NVFP4(starkweatherdigital 109GB)已出现,权重上传中;单机 NVFP4(Felliks/MaxLaurence)内存 109-120GB 临界
 7. **内存铁律**:单模型、看门狗、drop_caches、窗口逐级验证、Q4 禁大窗口——详见 4.6/10.4
 
-1. **🏆 终版生产推荐:Q3_K_XL + NVMe-PLE + MTP+ngram-mod**(262K 窗口)
-   - 代码复制 **78.9 t/s** = 旧配置(24 t/s)的 **3.3 倍**;内存 **70GB**(原 102GB),余量 51GB
-   - 命令:见 docs/mtp-tracker.zh.md(方案 B + PLE 参数 + warm_table.py 预热)
-2. **🚀 ngram-mod 打破"24 t/s 天花板"**:代码复制/编辑类任务 **25.0 → 58.7 t/s(+135%)**,零内存增量,输出逐 token 验证不变;散文类 ~26 t/s 不变
-3. **🚀 MTP+ngram-mod 叠加**:IQ3_XXS 代码复制 **83.0 t/s(3.3x)**、数数 58.1、散文 29.6(验证树 bea3b12d + dzannotti 头)
-4. **🚀 Q4_K_XL 借助 NVMe-PLE 可跑**:82GB 内存(官方需求 112GB),质量 93.5%;+MTP+ngram-mod 代码复制 **70.1 t/s(3.1x)**
-   - 取舍:速度优先 → IQ3 组合投机(83 t/s/87.6%);质量优先 → Q4 组合投机(70.1 t/s/93.5%)
-5. **262K 上下文免费**(架构红利),但大窗口会拖慢短提示词 prefill(实现税+架构税)
-6. **MTP 路线树兼容性**:035e22731 段错误,cafe fork 永久放弃(两次 OOM);验证树 bea3b12d + 独立/内嵌头可用
-7. 全量 NVFP4(101.7GB,含 MTP 头)已出现(provsalt),本机临界可装,列入观察
