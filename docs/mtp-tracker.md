@@ -63,7 +63,7 @@ convenience is the point, not speed.
 | + MTP (embedded head, merge script) | 56.3 | — | 53.6 | ~2.5 GB |
 | **Q4_K_XL + PLE-offload + MTP+ngram-mod** | 39.1 | 19.3 | **70.1** | ~4 GB (86 GB total) |
 
-> Q4 row: 93.5% quality (highest runnable level), NVMe-PLE keeps memory at 82 GB baseline;
+> Q4 row: 93.5% quality (highest runnable level), NVMe-PLE keeps memory at 82 GB baseline; **⚠️ verified at 8K only — loading at 262K froze the machine (incident 5); use Q3 for large windows**;
 > code copy 70.1 = **3.1× its own no-spec baseline** (22.9). Speed-first → IQ3 (83.0);
 > quality-first → Q4 (70.1).
 
