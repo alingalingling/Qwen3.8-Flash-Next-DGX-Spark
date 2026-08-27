@@ -3,7 +3,7 @@
 **[中文](deploy_playbook.zh.md) | [English](deploy_playbook.md)**
 
 > 目标机器:NVIDIA DGX Spark(GB10),128 GB 统一内存
-> 状态:**已部署完成并全面提速**——生产配方 = Q3_K_XL + NVMe-PLE + MTP+ngram-mod,262K,78.9 t/s,70GB 内存
+> 状态:**已部署完成并全面提速**——生产配方 = Q3_K_XL + NVMe-PLE + MTP+ngram-map-k4v,262K,78.9 t/s 单流 / 77.5 聚合(2 并发),70GB 内存
 > 早期版本(2026-08-26)是"等目标版本出现"的预案,现已全部落地,本文档转为实战记录
 
 ## 0. 验收公式(实测核对)
@@ -25,9 +25,9 @@ LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
   -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
   -lm mmap -ot per_layer_token_embd=CPU \
   -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
   -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
-  --ctx-size 262144 --parallel 1 --host 0.0.0.0 --port 8889 \
+  --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
   --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
 # 就绪后预热 PLE(一次 ~28s):
 # GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 ~/smalltask/hf_monitor/warm_table.py <模型分片1>
@@ -45,11 +45,11 @@ LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
 - ⚠️ **仅 8K 短窗口**(事故 5:262K 加载即整机冻结);大窗口请用路径 A
 - 引擎/参数同上,模型换 `UD-Q4_K_XL-00001-of-00004.gguf`
 
-### 简易方案(零依赖,ngram-mod)
+### 简易方案(零依赖,ngram-map-k4v)
 
 ```bash
 ~/llama.cpp/build/bin/llama-server -m <任意分片1> -ngl 999 -t 20 \
-  --spec-type ngram-mod --jinja --ctx-size 262144 --port 8889
+  --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
 ```
 
 ## 2. 构建步骤(已执行,记录备查)

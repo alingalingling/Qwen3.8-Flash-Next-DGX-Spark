@@ -15,7 +15,7 @@
 > llama.cpp qwen4exp 支持(PR #27742 分支)、unsloth Dynamic 3.0 全部量化档位、当时已出现的全部推理引擎与量化仓库。
 >
 > 模型发布后的生态仍在快速繁荣:llama.cpp 官方支持即将合并、**MTP 投机解码已在本机实测打通**(独立 MTP 草稿头 + 补丁,见 docs/mtp-tracker.zh.md)、
-> **投机提速已全面解锁**(ngram-mod 免费 +135%,MTP+ngram-mod 叠加 +232%,见 docs/speculative-analysis.zh.md)、
+> **投机提速已全面解锁**(ngram-map-k4v 免费 +237%,MTP+map-k4v 叠加 +334% 达 108 t/s;并发 parallel 2 实测安全,见 docs/speculative-analysis.zh.md)、
 > Baekpica 混合量化(含 SSD-PLE 方案)与全量 NVFP4 仍在验证中。
 > **因此本项目将持续更新**——随生态演进,README 结论、docs 实测数据、工具脚本与路线图会同步迭代,
 > 建议关注本仓库获取 Flash-Next 单机部署的最新方案。
@@ -57,10 +57,10 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | 方案 | 代码复制/编辑 | 散文 | 内存 | 质量 |
 |---|---:|---:|---:|---:|
 | 基线(无投机)| 25.0 t/s | 25.4 t/s | 83 GB | 87.6% |
-| **ngram-mod**(零成本)| **58.7 t/s** | 26.1 t/s | 83 GB | 87.6% |
-| **MTP + ngram-mod**(验证树)| **83.0 t/s** | 29.6 t/s | 86 GB | 87.6% |
-| **Q4_K_XL + PLE-offload + MTP+ngram** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
-| **🏆 Q3_K_XL + PLE + MTP+ngram(262K 生产)** | **78.9 t/s** | 21.5 t/s | **70 GB** | 90.4% |
+| **ngram-map-k4v**(零成本)| **84.2 t/s** | 27.8 t/s | 83 GB | 87.6% |
+| **MTP + ngram-map-k4v**(验证树)| **108.4 t/s** 🚀 | 27.9 t/s | 86 GB | 87.6% |
+| **Q4_K_XL + PLE-offload + MTP+ngram-map-k4v** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
+| **🏆 Q3_K_XL + PLE + MTP+map-k4v(262K 生产)** | **78.9 t/s**(单流)/ **77.5 聚合(2 并发)** | 21.5 t/s | **70 GB** | 90.4% |
 | 对照:2×DGX Spark NVFP4+MTP4(社区)| 50-55 t/s | ~33 t/s | 双机 | 4-bit 级 |
 
 > 🚀 单台 DGX Spark + 组合投机,结构化输出已超越社区双机 NVFP4+MTP4 方案。
@@ -141,8 +141,9 @@ python3 scripts/probe_mtp.py /path/to/model.gguf   # 或分片目录
 
 ## 已知结论
 
-1. **🚀 投机解码已解锁(2026-08-27 夜)**:ngram-mod 零成本提速代码类任务 2.3x;
-   **MTP 头 + ngram-mod 叠加达 3.3x(83 t/s)**;散文类 ~26 t/s 无增益(收益=输出可预测性)。
+1. **🚀 投机解码已全面解锁(2026-08-27~28)**:ngram-map-k4v 零成本提速代码类任务 3.4x(84.2 t/s);
+   **MTP 头 + map-k4v 叠加达 4.3x(108.4 t/s)**;散文类 ~26-29 t/s 增益有限(收益=输出可预测性)。
+   **并发**:parallel 2 实测安全(8K 聚合 93-104 / 262K 聚合 77.5 t/s,0 断言崩溃,修正 0xBakeer 报告)
    旧结论"24 t/s 是天花板"作废,详见 docs/speculative-analysis.zh.md
 2. **后台服务用 setsid 启动**:防止终端超时把服务一起杀掉
 3. **上下文大胆开**:QSA 稀疏 KV 让 262K 的内存增量只有几 GB;但**大窗口会拖慢短请求的 prompt 处理**(262K 下 36.5 vs 128K 下 80.8 tok/s),短对话场景建议 128K
@@ -152,7 +153,7 @@ python3 scripts/probe_mtp.py /path/to/model.gguf   # 或分片目录
 ## 路线图
 
 - [ ] llama.cpp PR #27742 合并(上游;当前 54 commits,仍无 MTP 提交)
-- [x] MTP 支持落地 → 已用 dzannotti 头 + bea3b12d 验证树打通(MTP + ngram-mod 叠加 83 t/s)
+- [x] MTP 支持落地 → dzannotti 头 + bea3b12d 验证树打通(MTP + ngram-map-k4v 叠加 108.4 t/s)
 - [x] 0xBakeer NVMe-PLE 方案实测(Q4_K_XL 82GB 可跑;终版生产配方 Q3 78.9 t/s @262K/70GB)
 - [ ] Baekpica 混合量化版验证门通过后的适配评估(ds4 运行时)
 - [ ] 全量化 NVFP4 已出现:starkweatherdigital(109GB,PLE 也 4-bit,vLLM 公开补丁+预构建镜像,DGX Spark 实测 24.6 t/s MTP)——权重上传中,内存临界,受控评估中;另见 Felliks/MaxLaurence(PLE 落盘专家版,单机跑通)

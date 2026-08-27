@@ -4,7 +4,7 @@
 
 > Target machine: NVIDIA DGX Spark (GB10), 128 GB unified memory
 > Status: **deployed and fully accelerated** — production recipe = Q3_K_XL + NVMe-PLE +
-> MTP+ngram-mod, 262K context, 78.9 t/s, 70 GB memory
+> MTP+ngram-map-k4v, 262K context, 78.9 t/s single / 77.5 aggregate (2 concurrent), 70 GB memory
 > The 2026-08-26 edition was a contingency plan ("awaiting target version"); everything has
 > since landed — this document is now the executed playbook.
 
@@ -27,9 +27,9 @@ LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
   -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
   -lm mmap -ot per_layer_token_embd=CPU \
   -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
   -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
-  --ctx-size 262144 --parallel 1 --host 0.0.0.0 --port 8889 \
+  --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
   --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
 # After ready, warm the PLE table (one ~28s pass):
 # GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 ~/smalltask/hf_monitor/warm_table.py <model shard 1>
@@ -48,11 +48,11 @@ Measured: code copy 78.9 t/s (262K) / 82.7 (8K); prose 21.5-25.8; memory 70GB (5
 - ⚠️ **8K short window only** (incident 5: loading at 262K froze the machine); use Path A for large windows
 - Same engine/flags, model = `UD-Q4_K_XL-00001-of-00004.gguf`
 
-### Simple option (zero dependencies, ngram-mod)
+### Simple option (zero dependencies, ngram-map-k4v)
 
 ```bash
 ~/llama.cpp/build/bin/llama-server -m <any shard 1> -ngl 999 -t 20 \
-  --spec-type ngram-mod --jinja --ctx-size 262144 --port 8889
+  --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
 ```
 
 ## 2. Build steps (executed; kept for reference)

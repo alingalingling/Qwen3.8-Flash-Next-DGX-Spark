@@ -50,10 +50,10 @@ This repo documents and open-sources all tools and measurements for deploying it
 | Setup | Code copy/edit | Prose | Memory | Quality |
 |---|---:|---:|---:|---:|
 | Baseline (no speculation) | 25.0 t/s | 25.4 t/s | 83 GB | 87.6% |
-| **ngram-mod** (free) | **58.7 t/s** | 26.1 t/s | 83 GB | 87.6% |
-| **MTP + ngram-mod** (verified tree) | **83.0 t/s** | 29.6 t/s | 86 GB | 87.6% |
-| **Q4_K_XL + PLE-offload + MTP+ngram** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
-| **🏆 Q3_K_XL + PLE + MTP+ngram (262K production)** | **78.9 t/s** | 21.5 t/s | **70 GB** | 90.4% |
+| **ngram-map-k4v** (free) | **84.2 t/s** | 27.8 t/s | 83 GB | 87.6% |
+| **MTP + ngram-map-k4v** (verified tree) | **108.4 t/s** 🚀 | 27.9 t/s | 86 GB | 87.6% |
+| **Q4_K_XL + PLE-offload + MTP+ngram-map-k4v** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
+| **🏆 Q3_K_XL + PLE + MTP+map-k4v (262K production)** | **78.9 t/s** (single) / **77.5 aggregate (2 concurrent)** | 21.5 t/s | **70 GB** | 90.4% |
 | Reference: 2×DGX Spark NVFP4+MTP4 (community) | 50-55 t/s | ~33 t/s | two machines | 4-bit class |
 
 > 🚀 A single DGX Spark with stacked speculation beats the community's two-machine NVFP4+MTP4
@@ -134,10 +134,11 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 
 ## Known findings
 
-1. **🚀 Speculative decoding is now UNLOCKED (2026-08-27 night)**: ngram-mod gives a free 2.3×
-   on code-type tasks; **MTP head + ngram-mod stacked reaches 3.3× (83 t/s)**; prose stays ~26 t/s
-   (gain = output predictability). The old "24 t/s ceiling" finding is obsolete —
-   see docs/speculative-analysis.md.
+1. **🚀 Speculative decoding fully unlocked (2026-08-27~28)**: ngram-map-k4v gives a free 3.4×
+   on code-type tasks (84.2 t/s); **MTP + map-k4v stacked reaches 4.3× (108.4 t/s)**; prose ~26-29 t/s
+   (gain = output predictability). **Concurrency works**: `--parallel 2` measured safe — 93-104 t/s
+   aggregate at 8K, 77.5 at 262K, 0 assert crashes (corrects 0xBakeer's report). The old
+   "24 t/s ceiling" finding is obsolete — see docs/speculative-analysis.md.
 2. **Start background services with setsid**: prevents the terminal timeout from killing the service along with the command.
 3. **Open the context boldly**: QSA sparse KV keeps the 262K memory cost to a few GB; but **large windows slow down short-prompt processing** (36.5 vs 80.8 tok/s at 262K vs 128K) — use 128K for short conversations.
 4. **Memory-safety rules**: only one model resident at a time; the cafe-llama.cpp fork OOM'd twice (permanently abandoned); system watchdog (system_watchdog.sh, 5GB/5s) auto-starts via crontab @reboot.
