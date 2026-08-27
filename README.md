@@ -13,7 +13,7 @@
 > This project was created on **the release day of Qwen3.8-Flash-Next (2026-08-26)**; every deployment step, measurement, and conclusion reflects **the state of the community ecosystem at that time**:
 > llama.cpp qwen4_exp support (PR #27742 branch), all unsloth Dynamic 3.0 quant levels, and every inference engine and quant repo that existed then.
 >
-> The ecosystem is still growing fast: llama.cpp upstream support is about to merge, MTP speculative decoding is about to land, and Baekpica's mixed-quant (including the SSD-PLE variant) plus a full NVFP4 quant are in validation/release.
+> The ecosystem is still growing fast: llama.cpp upstream support is about to merge, **MTP speculative decoding is now within reach** (a standalone MTP draft head + patch is available and built locally — see docs/mtp-tracker.md), and Baekpica's mixed-quant (including the SSD-PLE variant) plus a full NVFP4 quant are in validation/release.
 > **This project will therefore keep updating** — as the ecosystem evolves, the README conclusions, docs data, tool scripts, and roadmap will be revised accordingly.
 
 ## What's in this repo
