@@ -203,18 +203,24 @@
 
 ---
 
-## 7. Comparison with reference data (27B precedent on the same machine)
+## 7. Comparison with reference data (27B precedent + full-market single-machine setups, 2026-08-28)
 
-| Model | Engine/method | Decode speed |
-|---|---|---|
-| Qwen3.8-27B NVFP4 | SGLang + DFlash2 speculation (k=12) | **55.3 t/s** |
-| Qwen3.8-27B NVFP4 | SGLang no speculation (bandwidth limit 273GB/s ÷ 20.4GB) | ~13.4 t/s |
-| Qwen3.8-Flash-Next 180B | llama.cpp no speculation (this machine) | **22-24 t/s** |
+| Model / setup | Engine | Single-stream | Concurrent aggregate | Context | Memory |
+|---|---|---|---|---|---|
+| Qwen3.8-27B NVFP4 | SGLang + DFlash2 (k=12) | **55.3 t/s** | — | — | ~93GB |
+| Qwen3.8-27B NVFP4 | SGLang no spec (bandwidth limit) | ~13.4 t/s | — | — | — |
+| Flash-Next **this machine: Q3 production** | llama.cpp + PLE + MTP+map-k4v | **78.9 (code) / 21.5 (prose)** | **77.5 (2 concurrent)** | 262K | **70GB** |
+| Flash-Next **this machine: IQ3 max** | llama.cpp + MTP+map-k4v | **108.4 (code)** | 93-104 (2 concurrent, 8K) | 16K | 86GB |
+| Flash-Next 0xBakeer Q4 | llama.cpp + PLE + ngram-mod | 46-74 (code) | — (parallel 1) | 262K | ~77GB |
+| Flash-Next Felliks | SGLang + RadixArk+PLE-on-NVMe + MTP-213 | 32.7 (general) | **93-103 (4 streams)** | 262K | 120.45GB |
+| Flash-Next MaxLaurence | SGLang + PLE demand-page + NEXTN | 17.9 (prose) / 42.1 (copy) | 39.3 / **132.2 (4 streams)** | 262K | 109GB |
+| Flash-Next starkweatherdigital | vLLM + 109GB full quant + MTP | **24.6 (MTP, 80% acceptance)** | — | 32K | ~120GB |
 
-> Reference: Flash-Next's no-speculation measurement is already ~2× the 27B no-speculation bandwidth limit (6B active × smaller weights);
-> if MTP speculation lands (1.5-2.5×), expect 30-50 t/s, clearly beating the 27B+DFlash2 combo.
-
----
+> Reference: Flash-Next bare decode (22-24 t/s) is already ~2x the 27B no-speculation bandwidth limit;
+> **with stacked speculation this machine beats both the 27B+DFlash2 combo and every community
+> single-machine NVFP4 setup on single-request speed**; the community NVFP4 advantage is only
+> 4-stream aggregate concurrency (93-132 t/s), at the cost of critical memory (109-120GB).
+> Full selection and deployment steps: docs/deployment-matrix.md.
 
 ## 8. Reproducible methodology
 

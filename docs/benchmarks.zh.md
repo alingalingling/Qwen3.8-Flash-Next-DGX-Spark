@@ -201,16 +201,23 @@
 
 ---
 
-## 7. 与参考数据的对比(27B 同机先例)
+## 7. 与参考数据的对比(27B 先例 + 全市场单机方案,2026-08-28)
 
-| 模型 | 引擎/方案 | 解码速度 |
-|---|---|---|
-| Qwen3.8-27B NVFP4 | SGLang + DFlash2 投机(k=12)| **55.3 t/s** |
-| Qwen3.8-27B NVFP4 | SGLang 无投机(带宽极限 273GB/s ÷ 20.4GB)| ~13.4 t/s |
-| Qwen3.8-Flash-Next 180B | llama.cpp 无投机(本机)| **22-24 t/s** |
+| 模型/方案 | 引擎 | 单流速度 | 并发聚合 | 上下文 | 内存 |
+|---|---|---|---|---|---|
+| Qwen3.8-27B NVFP4 | SGLang + DFlash2(k=12) | **55.3 t/s** | — | — | ~93GB |
+| Qwen3.8-27B NVFP4 | SGLang 无投机(带宽极限) | ~13.4 t/s | — | — | — |
+| Flash-Next **本机 Q3 生产配方** | llama.cpp + PLE + MTP+map-k4v | **78.9(代码)/21.5(散文)** | **77.5(2 并发)** | 262K | **70GB** |
+| Flash-Next **本机 IQ3 极限** | llama.cpp + MTP+map-k4v | **108.4(代码)** | 93-104(2 并发,8K) | 16K | 86GB |
+| Flash-Next 0xBakeer Q4 | llama.cpp + PLE + ngram-mod | 46-74(代码) | —(parallel 1) | 262K | ~77GB |
+| Flash-Next Felliks | SGLang + RadixArk+PLE 落盘 + MTP-213 | 32.7(普通) | **93-103(4 流)** | 262K | 120.45GB |
+| Flash-Next MaxLaurence | SGLang + PLE demand-page + NEXTN | 17.9(散文)/42.1(复制) | 39.3 / **132.2(4 流)** | 262K | 109GB |
+| Flash-Next starkweatherdigital | vLLM + 109GB 全量化 + MTP | **24.6(MTP,80% 接受率)** | — | 32K | ~120GB |
 
-> 参考:Flash-Next 无投机实测已接近 27B 无投机带宽极限的 2 倍(6B 激活 × 更小权重的红利);
-> 若 MTP 投机落地(1.5-2.5x),预期 30-50 t/s,将明显超越 27B+DFlash2 组合。
+> 参考:Flash-Next 无投机实测(22-24 t/s)已接近 27B 无投机带宽极限的 2 倍;
+> **本机组合投机后单机单请求全面超越 27B+DFlash2 与所有社区单机 NVFP4 方案**;
+> 社区 NVFP4 的优势仅在 4 流并发聚合(93-132 t/s),代价是内存临界(109-120GB)。
+> 完整选型与部署步骤见 docs/deployment-matrix.md。
 
 ---
 
