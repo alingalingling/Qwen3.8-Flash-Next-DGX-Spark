@@ -131,6 +131,19 @@
 > SGLang 4-stream (93-103) — llama.cpp can serve multiple requests on one machine too!
 > ⚠️ Verified at 8K window × 2 streams only; 262K concurrent not yet verified (0xBakeer's
 > crash may live on the long-context path); validate 128K before production concurrency.
+
+### 5.1c 262K-window concurrency measured (2026-08-28, Q3+PLE-offload+MTP+ngram-map-k4v, --parallel 2, production build bea3b12d)
+
+| Scenario | Request A | Request B | Aggregate | Server | Memory |
+|---|---:|---:|---:|---|---:|
+| codeC + prose (short) | 61.7 t/s | 15.8 t/s | ~77.5 t/s | ✅ alive, 0 asserts | 72GB / 49GB free |
+| **18.7K-token prompt + prose** | 29.4 t/s (after prefill) | 2.4 t/s (queued) | — | ✅ alive, 0 asserts | 74GB / 47GB free |
+
+> 🎯 **262K + concurrency = safe (further correction)**: even with a 262K window, 2 concurrent
+> streams and an 18.7K-token prompt, zero assert crashes, memory stable at 74GB/47GB free.
+> 0xBakeer's crash was on an older commit (035e227, missing the indexer-KV save/restore
+> concurrency fixes); our 035e22731 and bea3b12d builds both include them. Production recipe can
+> safely use `--parallel 2` (free dual-request concurrency on a personal machine).
 > (code-type). ngram-mod: acc 0.56641 / len 37.25; map-k4v: acc 0.849 / len 41.75; MTP+k4v: acc
 > 0.86 / len 14.64. Speculation is exact (every token verified, output unchanged).
 

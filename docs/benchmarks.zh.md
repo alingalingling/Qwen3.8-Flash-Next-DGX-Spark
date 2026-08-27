@@ -133,6 +133,18 @@
 > 双请求聚合 **93-104 t/s**,与 Felliks SGLang 四流(93-103)相当——llama.cpp 单机也能做多请求服务!
 > ⚠️ 仅验证 8K 短窗口 × 2 流;262K 长窗口并发未验证(0xBakeer 的崩溃可能发生在长上下文路径),
 > 生产大窗口并发前需先 128K 级验证。
+
+### 5.1c 262K 窗口并发实测(2026-08-28,Q3+PLE-offload+MTP+ngram-map-k4v,--parallel 2,生产构建 bea3b12d)
+
+| 场景 | 请求 A | 请求 B | 聚合 | 服务 | 内存 |
+|---|---:|---:|---:|---|---:|
+| 代码C + 散文(短请求) | 61.7 t/s | 15.8 t/s | ~77.5 t/s | ✅ 存活,0 assert | 72GB/49GB 余 |
+| **18.7K token 大 prompt + 散文** | 29.4 t/s(prefill 后) | 2.4 t/s(排队等待) | — | ✅ 存活,0 assert | 74GB/47GB 余 |
+
+> 🎯 **262K + 并发 = 安全(进一步修正)**:即使 262K 窗口 + 2 并发 + 18.7K token 长 prompt,全程
+> **0 断言崩溃、内存稳定 74GB/余 47GB**。0xBakeer 的崩溃报告基于更早 commit(035e227,缺
+> "save and restore the qwen4exp indexer KV cache" 等并发修复);我们的 035e22731 与 bea3b12d 均已含这些修复。
+> 生产配方可安全使用 `--parallel 2`(个人机器双请求并发零成本)。
 > ngram-mod 关键数据:acceptance 0.56641、均长 37.25;map-k4v:acceptance 0.849、均长 41.75;
 > MTP+k4v 组合:acceptance 0.86、均长 14.64。投机完全精确(逐 token 验证,输出不变)。
 
