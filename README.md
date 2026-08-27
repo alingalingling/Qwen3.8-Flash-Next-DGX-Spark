@@ -148,7 +148,7 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 - [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-mod = 83 t/s)
 - [x] 0xBakeer NVMe-PLE recipe verified (Q4_K_XL at 82 GB; final production recipe Q3 = 78.9 t/s @262K / 70 GB)
 - [ ] Evaluate Baekpica mixed-quant once validation gates pass (ds4 runtime)
-- [ ] Single-Spark NVFP4 recipes appeared (Felliks/MaxLaurence: RadixArk + PLE-on-NVMe, SGLang, 32.7 t/s single / 93-132 aggregate) — memory-critical (120/128GB), not deployed yet; controlled evaluation
+- [ ] Full NVFP4 appeared: starkweatherdigital (109GB, PLE also 4-bit, public vLLM patches + prebuilt image, measured 24.6 t/s MTP on DGX Spark) — weights still uploading, memory-critical, controlled evaluation; also Felliks/MaxLaurence (PLE-on-NVMe expert version, running on one Spark)
 
 ## Acknowledgements
 

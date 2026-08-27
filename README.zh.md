@@ -155,7 +155,7 @@ python3 scripts/probe_mtp.py /path/to/model.gguf   # 或分片目录
 - [x] MTP 支持落地 → 已用 dzannotti 头 + bea3b12d 验证树打通(MTP + ngram-mod 叠加 83 t/s)
 - [x] 0xBakeer NVMe-PLE 方案实测(Q4_K_XL 82GB 可跑;终版生产配方 Q3 78.9 t/s @262K/70GB)
 - [ ] Baekpica 混合量化版验证门通过后的适配评估(ds4 运行时)
-- [ ] NVFP4 单机方案已出现(Felliks/MaxLaurence:RadixArk+PLE 落盘,SGLang,单流 32.7 t/s/四流 93-132),内存临界(120/128GB)暂不部署,受控评估中
+- [ ] 全量化 NVFP4 已出现:starkweatherdigital(109GB,PLE 也 4-bit,vLLM 公开补丁+预构建镜像,DGX Spark 实测 24.6 t/s MTP)——权重上传中,内存临界,受控评估中;另见 Felliks/MaxLaurence(PLE 落盘专家版,单机跑通)
 
 ## 致谢
 
