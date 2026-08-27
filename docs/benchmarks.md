@@ -118,6 +118,19 @@
 > **ngram-variant discovery (2026-08-28)**: map-k/map-k4v token mapping raises draft acceptance
 > from mod's 0.566 to **0.849** (mean len 37→42), code copy 58.7 → 82-84 t/s — **+40% free**;
 > **MTP+map-k4v stacked = 108.4 t/s = 4.3x baseline**, currently the fastest single-machine config
+
+### 5.1b llama.cpp concurrency measured (2026-08-28, IQ3_XXS + ngram-map-k4v, --parallel 2, 8K window)
+
+| Scenario | Request A | Request B | **Aggregate** | Server alive |
+|---|---:|---:|---:|---|
+| codeC + prose | 70.1 t/s | 22.9 t/s | **~93 t/s** | ✅ (0 asserts) |
+| codeC + codePy | 61.8 t/s | 42.1 t/s | **~104 t/s** | ✅ |
+
+> 🚀 **qwen4exp concurrency works (correcting 0xBakeer's crash report)**: with our
+> 035e22731+canreuse build, `--parallel 2` aggregates **93-104 t/s**, on par with Felliks'
+> SGLang 4-stream (93-103) — llama.cpp can serve multiple requests on one machine too!
+> ⚠️ Verified at 8K window × 2 streams only; 262K concurrent not yet verified (0xBakeer's
+> crash may live on the long-context path); validate 128K before production concurrency.
 > (code-type). ngram-mod: acc 0.56641 / len 37.25; map-k4v: acc 0.849 / len 41.75; MTP+k4v: acc
 > 0.86 / len 14.64. Speculation is exact (every token verified, output unchanged).
 
