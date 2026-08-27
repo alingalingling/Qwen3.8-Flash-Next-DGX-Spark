@@ -32,10 +32,10 @@
 
 ```bash
 LLAMA_ATTN_ROT_DISABLE=1 llama-server \
-  -m Qwen3.8-Flash-Next-UD-IQ3_XXS-00001-of-00003.gguf \
-  -md Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
-  -ngl 999 -fa on -ctk q8_0 -ctv q8_0 -c 262144
+ -m Qwen3.8-Flash-Next-UD-IQ3_XXS-00001-of-00003.gguf \
+ -md Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
+ --spec-type draft-mtp --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+ -ngl 999 -fa on -ctk q8_0 -ctv q8_0 -c 262144
 ```
 
 ## 注入方案(免重下 82/90GB 模型——merge-mtp-shard.py)
@@ -55,32 +55,32 @@ LLAMA_ATTN_ROT_DISABLE=1 llama-server \
 |---|---:|---:|---:|---:|
 | IQ3 基线 | 26.2 t/s | 25.4 t/s | 25.0 t/s | 0 |
 | + MTP(-md 独立头)| **57.3** | 25.2 | **54.6** | ~3 GB |
-| + MTP + ngram-mod | **58.1** | **29.6** | **83.0** 🚀 | ~3 GB |
+| + MTP + ngram-mod | **58.1** | **29.6** | **83.0** | ~3 GB |
 | + MTP(内嵌头,merge 方案)| 56.3 | — | 53.6 | ~2.5 GB |
 | **Q4_K_XL + PLE-offload + MTP+ngram-mod** | 39.1 | 19.3 | **70.1** | ~4 GB(总内存 86GB) |
 
-> Q4 行:质量 93.5%(全档位最高可跑档),NVMe-PLE 把内存压到 82GB 基线;**⚠️ 仅 8K 窗口验证过,262K 加载会冻结整机(事故 5),生产大窗口用 Q3**;
+> Q4 行:质量 93.5%(全档位最高可跑档),NVMe-PLE 把内存压到 82GB 基线;** 仅 8K 窗口验证过,262K 加载会冻结整机(事故 5),生产大窗口用 Q3**;
 > 代码复制 70.1 = 自身无投机基线(22.9)的 **3.1 倍**。速度优先选 IQ3(83.0),质量优先选 Q4(70.1)。
 
 - MTP 头草稿统计:接受率 0.62-1.00,平均草稿长度 2.2-4.0(MTP 本身);叠加 ngram-mod 后代码场景平均长度升至 10.8
 - **MTP 与 ngram-mod 互补**:MTP 擅长预测上下文之外的规律性输出(数数),ngram-mod 擅长抄上下文(代码复制);
-  两者叠加在代码复制上达到 **83.0 t/s = 基线的 3.3 倍**
+ 两者叠加在代码复制上达到 **83.0 t/s = 基线的 3.3 倍**
 - 组合用法:`--spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75`
 - 内嵌头与 `-md` 性能差 ~2%,便利性优先(省 0.5GB + 免第二个模型句柄)
 
-### ⚠️ 树版本兼容性(重要教训)
+### 树版本兼容性(重要教训)
 
-- ❌ **补丁在 035e22731 树上段错误**(MTP 头单独加载/`-md`/内嵌全部 segfault)——该树含 indexer-cache 重构,与补丁不兼容
-- ✅ **补丁只在 bea3b12d 树验证过**:`git checkout bea3b12da && git apply qwen4exp-mtp-draft-head.patch` 后构建即正常
+- **补丁在 035e22731 树上段错误**(MTP 头单独加载/`-md`/内嵌全部 segfault)——该树含 indexer-cache 重构,与补丁不兼容
+- **补丁只在 bea3b12d 树验证过**:`git checkout bea3b12da && git apply qwen4exp-mtp-draft-head.patch` 后构建即正常
 - 本机两个构建并存:`~/llama.cpp/build`(035e22731,ngram-mod 路线)与 `~/llama-mtp-verified/build`(bea3b12d,MTP 路线)
 
-## 本机行动计划(2026-08-27 夜:主体已完成 ✅)
+## 本机行动计划(2026-08-27 夜:主体已完成 )
 
-1. ✅ IQ3_XXS(82GB)下载完成 → 测速链完成(IQ3 基线 / ngram-mod / MTP 官方头 / Q3_K_XL 基线)
-2. ✅ MTP-Q4_K_M 头(2.44GB)下载完成,验证树重建成功,MTP 全形态实测完成(见上表)
-3. ✅ merge-mtp-shard.py 已给 IQ3_XXS 内嵌 MTP 头(UD-IQ3_XXS-MTP/,4 分片),实测可用
-4. ✅ Q4_K_XL(111GB)已下载 + 0xBakeer NVMe-PLE 方案实测完成(82GB、70.1 t/s,⚠️ 仅 8K 窗口)
-5. ❌ cafe-llama.cpp fork 路线永久放弃(两次爆内存死机,增量远超估算)
+1. IQ3_XXS(82GB)下载完成 → 测速链完成(IQ3 基线 / ngram-mod / MTP 官方头 / Q3_K_XL 基线)
+2. MTP-Q4_K_M 头(2.44GB)下载完成,验证树重建成功,MTP 全形态实测完成(见上表)
+3. merge-mtp-shard.py 已给 IQ3_XXS 内嵌 MTP 头(UD-IQ3_XXS-MTP/,4 分片),实测可用
+4. Q4_K_XL(111GB)已下载 + 0xBakeer NVMe-PLE 方案实测完成(82GB、70.1 t/s, 仅 8K 窗口)
+5. cafe-llama.cpp fork 路线永久放弃(两次爆内存死机,增量远超估算)
 
 ## 监控信号(仓库内 monitor.py 已跟踪)
 

@@ -51,12 +51,12 @@ This repo documents and open-sources all tools and measurements for deploying it
 |---|---:|---:|---:|---:|
 | Baseline (no speculation) | 25.0 t/s | 25.4 t/s | 83 GB | 87.6% |
 | **ngram-map-k4v** (free) | **84.2 t/s** | 27.8 t/s | 83 GB | 87.6% |
-| **MTP + ngram-map-k4v** (verified tree) | **108.4 t/s** 🚀 | 27.9 t/s | 86 GB | 87.6% |
+| **MTP + ngram-map-k4v** (verified tree) | **108.4 t/s** | 27.9 t/s | 86 GB | 87.6% |
 | **Q4_K_XL + PLE-offload + MTP+ngram-map-k4v** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
-| **🏆 Q3_K_XL + PLE + MTP+map-k4v (262K production)** | **78.9 t/s** (single) / **77.5 aggregate (2 concurrent)** | 21.5 t/s | **70 GB** | 90.4% |
+| ** Q3_K_XL + PLE + MTP+map-k4v (262K production)** | **78.9 t/s** (single) / **77.5 aggregate (2 concurrent)** | 21.5 t/s | **70 GB** | 90.4% |
 | Reference: 2×DGX Spark NVFP4+MTP4 (community) | 50-55 t/s | ~33 t/s | two machines | 4-bit class |
 
-> 🚀 A single DGX Spark with stacked speculation beats the community's two-machine NVFP4+MTP4
+> A single DGX Spark with stacked speculation beats the community's two-machine NVFP4+MTP4
 > setup on structured output. NVMe-PLE (`-ot per_layer_token_embd=CPU -lm mmap`) serves the PLE
 > table from the NVMe page cache: Q4_K_XL at 82 GB (official requirement 112 GB), Q3_K_XL at
 > 70 GB (262K window). Details in [docs/benchmarks.md](docs/benchmarks.md) and
@@ -87,7 +87,7 @@ This repo documents and open-sources all tools and measurements for deploying it
 ```bash
 # 1. Download the model (90 GB)
 hf download unsloth/Qwen3.8-Flash-Next-GGUF \
-  --include "UD-Q3_K_XL/*" --local-dir ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL
+ --include "UD-Q3_K_XL/*" --local-dir ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL
 
 # 2. Build llama.cpp (qwen4exp branch, PR #27742)
 git clone https://github.com/ggml-org/llama.cpp ~/llama.cpp && cd ~/llama.cpp
@@ -100,24 +100,24 @@ bash scripts/run_qwen38_q3.sh start
 
 # 4. Verify
 curl http://127.0.0.1:8889/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model":"qwen3.8","messages":[{"role":"user","content":"Hello"}],"max_tokens":100,"chat_template_kwargs":{"enable_thinking":false}}'
+ -H "Content-Type: application/json" \
+ -d '{"model":"qwen3.8","messages":[{"role":"user","content":"Hello"}],"max_tokens":100,"chat_template_kwargs":{"enable_thinking":false}}'
 ```
 
 ## Layout
 
 ```
 ├── scripts/
-│   ├── run_qwen38_q3.sh      # Server start/stop script (start/stop/status/logs)
-│   ├── qwen38-q3.service     # systemd autostart template
-│   ├── probe_mtp.py          # ⭐ GGUF MTP-head probe (pure Python, zero deps)
-│   └── monitor.py            # HF quant-repo monitor (incl. llama.cpp PR status)
+│ ├── run_qwen38_q3.sh # Server start/stop script (start/stop/status/logs)
+│ ├── qwen38-q3.service # systemd autostart template
+│ ├── probe_mtp.py # ⭐ GGUF MTP-head probe (pure Python, zero deps)
+│ └── monitor.py # HF quant-repo monitor (incl. llama.cpp PR status)
 ├── docs/
-│   ├── deploy_playbook.md        # Deployment manual (fit-check / 3 paths / red lines)
-│   ├── benchmarks.md             # Measured benchmarks (speed/context/memory/speculation)
-│   ├── speculative-analysis.md   # ⭐ Full measured speculation analysis (5 paths + causal chain + roadmap)
-│   └── mtp-tracker.md            # MTP-head tracking + injection plan
-└── LICENSE                   # Apache-2.0
+│ ├── deploy_playbook.md # Deployment manual (fit-check / 3 paths / red lines)
+│ ├── benchmarks.md # Measured benchmarks (speed/context/memory/speculation)
+│ ├── speculative-analysis.md # ⭐ Full measured speculation analysis (5 paths + causal chain + roadmap)
+│ └── mtp-tracker.md # MTP-head tracking + injection plan
+└── LICENSE # Apache-2.0
 ```
 
 ## Key scripts
@@ -125,7 +125,7 @@ curl http://127.0.0.1:8889/v1/chat/completions \
 ### probe_mtp.py — can your GGUF speculate?
 Speculative decoding (draft-mtp) requires the GGUF to contain an MTP head. unsloth stripped it from the Flash-Next quants (180B → 176.94B params), while the 27B GGUF keeps it. Check in 3 seconds:
 ```bash
-python3 scripts/probe_mtp.py /path/to/model.gguf   # or a shard directory
+python3 scripts/probe_mtp.py /path/to/model.gguf # or a shard directory
 ```
 
 ### monitor.py — watch for new versions
@@ -134,11 +134,11 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 
 ## Known findings
 
-1. **🚀 Speculative decoding fully unlocked (2026-08-27~28)**: ngram-map-k4v gives a free 3.4×
-   on code-type tasks (84.2 t/s); **MTP + map-k4v stacked reaches 4.3× (108.4 t/s)**; prose ~26-29 t/s
-   (gain = output predictability). **Concurrency works**: `--parallel 2` measured safe — 93-104 t/s
-   aggregate at 8K, 77.5 at 262K, 0 assert crashes (corrects 0xBakeer's report). The old
-   "24 t/s ceiling" finding is obsolete — see docs/speculative-analysis.md.
+1. ** Speculative decoding fully unlocked (2026-08-27~28)**: ngram-map-k4v gives a free 3.4×
+ on code-type tasks (84.2 t/s); **MTP + map-k4v stacked reaches 4.3× (108.4 t/s)**; prose ~26-29 t/s
+ (gain = output predictability). **Concurrency works**: `--parallel 2` measured safe — 93-104 t/s
+ aggregate at 8K, 77.5 at 262K, 0 assert crashes (corrects 0xBakeer's report). The old
+ "24 t/s ceiling" finding is obsolete — see docs/speculative-analysis.md.
 2. **Start background services with setsid**: prevents the terminal timeout from killing the service along with the command.
 3. **Open the context boldly**: QSA sparse KV keeps the 262K memory cost to a few GB; but **large windows slow down short-prompt processing** (36.5 vs 80.8 tok/s at 262K vs 128K) — use 128K for short conversations.
 4. **Memory-safety rules**: only one model resident at a time; the cafe-llama.cpp fork OOM'd twice (permanently abandoned); system watchdog (system_watchdog.sh, 5GB/5s) auto-starts via crontab @reboot.

@@ -13,13 +13,13 @@
 
 | Level | Size | same_top_pct vs BF16 ↑ | mean_kld ↓ | Official total mem | Verdict @ 128 GB |
 |---|---|---|---|---|---|
-| UD-Q4_K_XL (4-bit) | 111.3 GB | 93.5% | 0.045 | 112 GB | ❌ over budget |
-| UD-IQ4_XS (4-bit) | 93.7 GB | 91.1% | 0.079 | 112 GB | ⚠️ marginal (~9 GiB left) |
-| **UD-Q3_K_XL (3-bit)** | **90.0 GB** | **90.4%** | 0.100 | **90 GB** | ✅✅ **chosen** |
-| UD-IQ3_XXS (3-bit) | 82.0 GB | 87.6% | 0.157 | 90 GB | ✅ alternative (less memory) |
-| UD-Q2_K_XL (2-bit) | 78.9 GB | 85.2% | 0.213 | 79 GB | ✅ more headroom, quality tradeoff |
-| UD-IQ1_M (1-bit) | 74.5 GB | 82.4% | 0.302 | 75 GB | ❌ quality collapse line |
-| UD-IQ1_S (1-bit) | 72.5 GB | 80.2% | 0.375 | 75 GB | ❌ smoke-test only |
+| UD-Q4_K_XL (4-bit) | 111.3 GB | 93.5% | 0.045 | 112 GB | over budget |
+| UD-IQ4_XS (4-bit) | 93.7 GB | 91.1% | 0.079 | 112 GB | marginal (~9 GiB left) |
+| **UD-Q3_K_XL (3-bit)** | **90.0 GB** | **90.4%** | 0.100 | **90 GB** | **chosen** |
+| UD-IQ3_XXS (3-bit) | 82.0 GB | 87.6% | 0.157 | 90 GB | alternative (less memory) |
+| UD-Q2_K_XL (2-bit) | 78.9 GB | 85.2% | 0.213 | 79 GB | more headroom, quality tradeoff |
+| UD-IQ1_M (1-bit) | 74.5 GB | 82.4% | 0.302 | 75 GB | quality collapse line |
+| UD-IQ1_S (1-bit) | 72.5 GB | 80.2% | 0.375 | 75 GB | smoke-test only |
 
 > Quality data source: unsloth's official Divergence-300@32 (per-token comparison vs BF16).
 > **Key takeaway: 3-bit is already in the high-quality zone (IQ3_XXS is only 3.5pp behind IQ4_XS), far from the 1-bit collapse line.**
@@ -48,10 +48,10 @@
 **Two key findings**:
 
 1. **262K context costs only a few GB of extra memory** (32K→262K adds ~3 GiB of KV)
-   — the dividend of QSA sparse attention (fixed budget of 512 blocks/2048 tokens) + fixed GDN state; log confirms `kv_unified='true'`
+ — the dividend of QSA sparse attention (fixed budget of 512 blocks/2048 tokens) + fixed GDN state; log confirms `kv_unified='true'`
 2. **Decode is almost unaffected by the window size** (19.9-25.6 t/s variance is normal), but **prompt processing slows markedly with larger windows** (80.8→36.5 tok/s):
-   - llama.cpp pre-allocates KV/index structures for the max context; per-token fixed overhead grows with the window (implementation layer)
-   - with genuinely long contexts the QSA indexer's search space doubles (architecture layer)
+ - llama.cpp pre-allocates KV/index structures for the max context; per-token fixed overhead grows with the window (implementation layer)
+ - with genuinely long contexts the QSA indexer's search space doubles (architecture layer)
 
 ---
 
@@ -96,11 +96,11 @@
 | Method | Measured decode | Acceptance | Active? | Failure reason |
 |---|---|---|---|---|
 | Baseline (no speculation) | 24.2 t/s | — | — | — |
-| ngram-simple | 24.8 t/s | 25.6% (11/43) | ✅ active | only useful for repetitive text |
-| draft-dflash | 24.0 t/s | no stats | ❌ silent fallback | GGUF lacks DND draft structure |
-| draft-dspark | 24.1 t/s | no stats | ❌ silent fallback | same |
-| draft-mtp | n/a | — | ❌ | GGUF has no MTP head (0/1224 tensors) |
-| 0.2B external draft | 24.1 t/s | no stats | ❌ | untrained, acceptance ≈ 0 |
+| ngram-simple | 24.8 t/s | 25.6% (11/43) | active | only useful for repetitive text |
+| draft-dflash | 24.0 t/s | no stats | silent fallback | GGUF lacks DND draft structure |
+| draft-dspark | 24.1 t/s | no stats | silent fallback | same |
+| draft-mtp | n/a | — | — | GGUF has no MTP head (0/1224 tensors) |
+| 0.2B external draft | 24.1 t/s | no stats | — | untrained, acceptance ≈ 0 |
 
 ### 5.1a Full comparison table (2026-08-28 final, IQ3_XXS, ctx 8192-16384, same 3 tasks)
 
@@ -112,7 +112,7 @@
 | + **ngram-map-k4v** | 27.8 | 27.8 | **84.2** (+237%) | **0 (free)** |
 | + MTP (dzannotti head, `-md`) | 57.3 | 25.2 | 54.6 | ~3 GB |
 | + MTP + ngram-mod | 58.1 | 29.6 | 83.0 | ~3 GB |
-| + **MTP + ngram-map-k4v** | **57.7** | **27.9** | **108.4** 🚀🚀 (+334%) | ~3 GB |
+| + **MTP + ngram-map-k4v** | **57.7** | **27.9** | **108.4** (+334%) | ~3 GB |
 | + MTP (embedded head, merge script) | 56.3 | — | 53.6 | ~2.5 GB |
 
 > **ngram-variant discovery (2026-08-28)**: map-k/map-k4v token mapping raises draft acceptance
@@ -123,23 +123,23 @@
 
 | Scenario | Request A | Request B | **Aggregate** | Server alive |
 |---|---:|---:|---:|---|
-| codeC + prose | 70.1 t/s | 22.9 t/s | **~93 t/s** | ✅ (0 asserts) |
-| codeC + codePy | 61.8 t/s | 42.1 t/s | **~104 t/s** | ✅ |
+| codeC + prose | 70.1 t/s | 22.9 t/s | **~93 t/s** | (0 asserts) |
+| codeC + codePy | 61.8 t/s | 42.1 t/s | **~104 t/s** | — |
 
-> 🚀 **qwen4exp concurrency works (correcting 0xBakeer's crash report)**: with our
+> **qwen4exp concurrency works (correcting 0xBakeer's crash report)**: with our
 > 035e22731+canreuse build, `--parallel 2` aggregates **93-104 t/s**, on par with Felliks'
 > SGLang 4-stream (93-103) — llama.cpp can serve multiple requests on one machine too!
-> ⚠️ Verified at 8K window × 2 streams only; 262K concurrent not yet verified (0xBakeer's
+> Verified at 8K window × 2 streams only; 262K concurrent not yet verified (0xBakeer's
 > crash may live on the long-context path); validate 128K before production concurrency.
 
 ### 5.1c 262K-window concurrency measured (2026-08-28, Q3+PLE-offload+MTP+ngram-map-k4v, --parallel 2, production build bea3b12d)
 
 | Scenario | Request A | Request B | Aggregate | Server | Memory |
 |---|---:|---:|---:|---|---:|
-| codeC + prose (short) | 61.7 t/s | 15.8 t/s | ~77.5 t/s | ✅ alive, 0 asserts | 72GB / 49GB free |
-| **18.7K-token prompt + prose** | 29.4 t/s (after prefill) | 2.4 t/s (queued) | — | ✅ alive, 0 asserts | 74GB / 47GB free |
+| codeC + prose (short) | 61.7 t/s | 15.8 t/s | ~77.5 t/s | alive, 0 asserts | 72GB / 49GB free |
+| **18.7K-token prompt + prose** | 29.4 t/s (after prefill) | 2.4 t/s (queued) | — | alive, 0 asserts | 74GB / 47GB free |
 
-> 🎯 **262K + concurrency = safe (further correction)**: even with a 262K window, 2 concurrent
+> **262K + concurrency = safe (further correction)**: even with a 262K window, 2 concurrent
 > streams and an 18.7K-token prompt, zero assert crashes, memory stable at 74GB/47GB free.
 > 0xBakeer's crash was on an older commit (035e227, missing the indexer-KV save/restore
 > concurrency fixes); our 035e22731 and bea3b12d builds both include them. Production recipe can
@@ -150,12 +150,12 @@
 ### 5.2 MTP (dzannotti official route) status
 
 - 2.44GB standard Q4_K_M MTP head + `qwen4exp-mtp-draft-head.patch` ready
-- ❌ **Current tree (035e22731) + patch → segfault**: standalone head, `-md` draft mode and embedded
-  head all segfault at load_model — the patch is only verified on tree bea3b12d; the indexer-cache
-  refactor in 035e22731 is incompatible
-- 🔧 Rebuilding on the verified tree bea3b12d (in progress); will re-test when done
-- ⚠️ **cafe-llama.cpp fork permanently abandoned**: twice blew memory loading MTP drafts (90GB and
-  82GB main models), overhead far beyond the documented 10-15GB
+- **Current tree (035e22731) + patch → segfault**: standalone head, `-md` draft mode and embedded
+ head all segfault at load_model — the patch is only verified on tree bea3b12d; the indexer-cache
+ refactor in 035e22731 is incompatible
+- Rebuilding on the verified tree bea3b12d (in progress); will re-test when done
+- **cafe-llama.cpp fork permanently abandoned**: twice blew memory loading MTP drafts (90GB and
+ 82GB main models), overhead far beyond the documented 10-15GB
 
 ### 5.3 Window/quality cross-reference (2026-08-27 night; full speculation comparison in 5.1a)
 
@@ -163,28 +163,28 @@
 |---|---:|---:|---:|---:|---:|
 | IQ3_XXS baseline | 25.0 t/s | 25.4 | 26.2 | 83 GB | 87.6% |
 | IQ3_XXS + ngram-mod | **58.7** | 26.1 | 26.1 | 83 GB | 87.6% |
-| IQ3_XXS + MTP+ngram-mod | **83.0** 🚀 | 29.6 | 58.1 | 86 GB | 87.6% |
-| Q4_K_XL + PLE-offload baseline (⚠️8K window only) | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
+| IQ3_XXS + MTP+ngram-mod | **83.0** | 29.6 | 58.1 | 86 GB | 87.6% |
+| Q4_K_XL + PLE-offload baseline (8K window only) | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
 | Q4_K_XL + PLE + ngram-mod | 47.4 | 19.3 | 20.0 | **82 GB** | 93.5% |
-| Q4_K_XL + PLE + MTP+ngram-mod (⚠️8K window only) | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
+| Q4_K_XL + PLE + MTP+ngram-mod (8K window only) | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
 | **Q3_K_XL + PLE + MTP+ngram (8K)** | **82.7** | 25.8 | 54.1 | **64 GB** | 90.4% |
 | **Q3_K_XL + PLE + MTP+ngram (128K)** | **79.2** | — | — | **68 GB** | 90.4% |
 | **Q3_K_XL + PLE + MTP+ngram (262K, production window)** | **78.9** | 21.5 | — | **70 GB** | 90.4% |
 | 2×DGX Spark NVFP4 + MTP4 (community, tonyd2wild) | 50-55 t/s | ~33 | — | two machines | 4-bit class |
 
-**🏆 Production recommendation (2026-08-27 night, historical — superseded by the 2026-08-28 map-k4v version, see §9)**: Q3_K_XL + NVMe-PLE + MTP+ngram-mod
+** Production recommendation (2026-08-27 night, historical — superseded by the 2026-08-28 map-k4v version, see §9)**: Q3_K_XL + NVMe-PLE + MTP+ngram-mod
 - Memory **70 GB (262K, was 102 GB)**, headroom 51 GB; code copy **78.9 t/s (262K) / 82.7 (8K)**
-  = **3.3× the old config** (24 t/s)
+ = **3.3× the old config** (24 t/s)
 - All three windows (8K/128K/262K) verified; quality 90.4% unchanged (speculation verifies every token)
 
 **Q4_K_XL + NVMe-PLE key findings (0xBakeer recipe verified on this machine)**:
 - `-lm mmap -ot per_layer_token_embd=CPU`: the 51B PLE table (26.8 GiB) is served from the NVMe
-  page cache — **memory footprint 82 GB (IQ3-level, far below the official 112 GB requirement)**
+ page cache — **memory footprint 82 GB (IQ3-level, far below the official 112 GB requirement)**
 - Quality 93.5% (+3.1pp over Q3_K_XL, +5.9pp over IQ3_XXS); code copy with MTP+ngram-mod stacked
-  hits **70.1 t/s = 3.1× its own baseline**
+ hits **70.1 t/s = 3.1× its own baseline**
 - Speed vs quality tradeoff: IQ3 stacked = 83.0 t/s (87.6%) vs Q4 stacked = 70.1 t/s (93.5%)
 - Warm-up: one sequential 26.8 GiB read (~28 s, 0.95 GiB/s); warm after the server is ready
-  (loading evicts the table); cold/warm difference is significant with speculation on
+ (loading evicts the table); cold/warm difference is significant with speculation on
 - Cold load of the 4-shard Q4 takes ~4-5 min (3.5 min when download pages were still cached)
 
 > Full analysis (mechanism/math/causal chain/unlock roadmap) in **speculative-analysis.md**
@@ -230,8 +230,8 @@ llama-bench -m model.gguf -ngl 999 -t 20 -p 0 -n 64 -r 2
 
 # Server-side speed: the timings field of the API response
 curl -s http://127.0.0.1:8889/v1/chat/completions \
-  -d '{"messages":[{"role":"user","content":"..."}],"max_tokens":200}' \
-  | python3 -c "import json,sys; print(json.load(sys.stdin)['timings'])"
+ -d '{"messages":[{"role":"user","content":"..."}],"max_tokens":200}' \
+ | python3 -c "import json,sys; print(json.load(sys.stdin)['timings'])"
 
 # Speculation tests: separate port + small context (don't disturb production)
 llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --jinja
@@ -243,12 +243,12 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --j
 
 ## 9. Summary (final 2026-08-28)
 
-1. **🏆 Final production recommendation: Q3_K_XL + NVMe-PLE + MTP+ngram-map-k4v** (262K window, `--parallel 2` verified safe)
-   - Code copy **78.9 t/s single / 77.5 aggregate (2 concurrent)** = **3.3× the old config** (24 t/s); memory **70 GB** (was 102 GB), 51 GB headroom
-   - Command: deploy_playbook (Path A); warm the PLE table with warm_table.py after ready
-2. **🚀 Speculation fully unlocked (2026-08-28)**: ngram-map-k4v free code copy **84.2 t/s** (+237%, acc 0.849); **MTP+map-k4v stacked 108.4 t/s** (+334%, 4.3× baseline); prose 21.5-29.6 limited (gain = output predictability)
-3. **🚀 Concurrency works (correcting 0xBakeer)**: `--parallel 2` aggregates 93-104 t/s (8K) / 77.5 (262K), 0 assert crashes; 4 streams untested (memory allows)
-4. **🚀 Q4_K_XL runnable via NVMe-PLE**: 82 GB (official requirement 112 GB), 93.5% quality; +MTP+map-k4v code **70.1 t/s**; ⚠️ 8K short window only (incident 5)
+1. ** Final production recommendation: Q3_K_XL + NVMe-PLE + MTP+ngram-map-k4v** (262K window, `--parallel 2` verified safe)
+ - Code copy **78.9 t/s single / 77.5 aggregate (2 concurrent)** = **3.3× the old config** (24 t/s); memory **70 GB** (was 102 GB), 51 GB headroom
+ - Command: deploy_playbook (Path A); warm the PLE table with warm_table.py after ready
+2. ** Speculation fully unlocked (2026-08-28)**: ngram-map-k4v free code copy **84.2 t/s** (+237%, acc 0.849); **MTP+map-k4v stacked 108.4 t/s** (+334%, 4.3× baseline); prose 21.5-29.6 limited (gain = output predictability)
+3. ** Concurrency works (correcting 0xBakeer)**: `--parallel 2` aggregates 93-104 t/s (8K) / 77.5 (262K), 0 assert crashes; 4 streams untested (memory allows)
+4. ** Q4_K_XL runnable via NVMe-PLE**: 82 GB (official requirement 112 GB), 93.5% quality; +MTP+map-k4v code **70.1 t/s**; 8K short window only (incident 5)
 5. **262K context effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
 6. Full NVFP4 (starkweatherdigital 109GB) appeared, weights uploading; single-machine NVFP4 (Felliks/MaxLaurence) is memory-critical at 109-120GB
 7. **Memory iron rules**: one model, watchdogs, drop_caches, stepwise windows, no large window on Q4 — see §4.6/10.4

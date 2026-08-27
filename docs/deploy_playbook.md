@@ -13,24 +13,24 @@
 | Item | Measured |
 |---|---|
 | Disk (three quants) | Q3 90GB / IQ3 82GB / Q4 111GB (~283GB total; 3.0TB free) |
-| Runtime peak | Q3 recipe @262K = **70GB** ≤ 115GB ✅ (old config: 102GB) |
-| No load-time BF16 re-inflation | ✅ NVMe-PLE: `-lm mmap -ot per_layer_token_embd=CPU`, PLE not resident |
+| Runtime peak | Q3 recipe @262K = **70GB** ≤ 115GB (old config: 102GB) |
+| No load-time BF16 re-inflation | NVMe-PLE: `-lm mmap -ot per_layer_token_embd=CPU`, PLE not resident |
 | Quality levels | Q3 90.4% / IQ3 87.6% / Q4 93.5% (unsloth Divergence-300) |
 
 ## 1. Three runtime paths (by priority, all measured on this machine)
 
-### Path A: Q3_K_XL production recipe (preferred, 262K, 78.9 t/s, 70GB) 🏆
+### Path A: Q3_K_XL production recipe (preferred, 262K, 78.9 t/s, 70GB)
 
 ```bash
 # Engine: ~/llama-mtp-verified/build (bea3b12d + qwen4exp-mtp-draft-head.patch)
 LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
-  -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
-  -lm mmap -ot per_layer_token_embd=CPU \
-  -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
-  -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
-  --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
-  --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
+ -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
+ -lm mmap -ot per_layer_token_embd=CPU \
+ -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
+ --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+ -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
+ --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
+ --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
 # After ready, warm the PLE table (one ~28s pass):
 # GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 ~/smalltask/hf_monitor/warm_table.py <model shard 1>
 ```
@@ -40,25 +40,25 @@ Measured: code copy 78.9 t/s (262K) / 82.7 (8K); prose 21.5-25.8; memory 70GB (5
 ### Path B: speed-first (IQ3_XXS, 83.0 t/s at 8K)
 
 - Same engine/flags, model = `UD-IQ3_XXS-00001-of-00003.gguf`; or the embedded-head build
-  `UD-IQ3_XXS-MTP/` (no `-md` needed; made with merge-mtp-shard.py)
+ `UD-IQ3_XXS-MTP/` (no `-md` needed; made with merge-mtp-shard.py)
 - Quality 87.6%; window verified up to 16K
 
 ### Path C: quality-first (Q4_K_XL, 70.1 t/s at 8K, 93.5%)
 
-- ⚠️ **8K short window only** (incident 5: loading at 262K froze the machine); use Path A for large windows
+- **8K short window only** (incident 5: loading at 262K froze the machine); use Path A for large windows
 - Same engine/flags, model = `UD-Q4_K_XL-00001-of-00004.gguf`
 
 ### Simple option (zero dependencies, ngram-map-k4v)
 
 ```bash
 ~/llama.cpp/build/bin/llama-server -m <any shard 1> -ngl 999 -t 20 \
-  --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
+ --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
 ```
 
 ## 2. Build steps (executed; kept for reference)
 
 ```bash
-# MTP route (verified tree bea3b12d + patch) — ⚠️ patch segfaults on tree 035e22731
+# MTP route (verified tree bea3b12d + patch) — patch segfaults on tree 035e22731
 git clone ~/llama.cpp ~/llama-mtp-verified
 cd ~/llama-mtp-verified && git checkout bea3b12da
 git apply ~/smalltask/hf_monitor/dzannotti-mtp/qwen4exp-mtp-draft-head.patch
@@ -77,8 +77,8 @@ cmake --build build -j 20
 ```bash
 # Embedded head (attach the head to any split GGUF; hard links save disk)
 GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 \
-  ~/projects/qwen38-flash-next-dgx-spark/patches/merge-mtp-shard.py \
-  <target model shard 1> <MTP head gguf> <output dir>
+ ~/projects/qwen38-flash-next-dgx-spark/patches/merge-mtp-shard.py \
+ <target model shard 1> <MTP head gguf> <output dir>
 # Then run with --spec-type draft-mtp and no -md; within ~2% of the -md form
 ```
 

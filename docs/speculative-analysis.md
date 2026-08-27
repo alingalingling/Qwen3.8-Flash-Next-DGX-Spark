@@ -21,8 +21,8 @@ This build (0.3.0-dev, qwen4exp branch) supports:
 
 ```
 --spec-type none, draft-simple, draft-eagle3, draft-mtp,
-              draft-dflash, draft-dspark,
-              ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache
+ draft-dflash, draft-dspark,
+ ngram-simple, ngram-map-k, ngram-map-k4v, ngram-mod, ngram-cache
 ```
 
 | Category | Method | Draft source | Needs extra model/tensors? |
@@ -59,10 +59,10 @@ llama-server ... --spec-type ngram-simple --spec-ngram-simple-size-n 8
 
 **When to use**: if your workload is dominated by repetitive text (log analysis, code-gen templates), turn it on; for general use it's **not worth it**.
 
-### 3.2 draft-dflash / draft-dspark — ❌ silent no-op
+### 3.2 draft-dflash / draft-dspark — silent no-op
 
 ```bash
-llama-server ... --spec-type draft-dflash   # or draft-dspark
+llama-server ... --spec-type draft-dflash # or draft-dspark
 ```
 
 | Measured item | Value |
@@ -74,7 +74,7 @@ llama-server ... --spec-type draft-dflash   # or draft-dspark
 
 **Key insight**: despite the name, `draft-dspark` also depends on model structure — **it's not a hardware limitation, the tensors simply aren't in the model file**.
 
-### 3.3 draft-mtp — ❌ GGUF has no MTP head
+### 3.3 draft-mtp — GGUF has no MTP head
 
 ```bash
 llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
@@ -90,7 +90,7 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 
 > **UPDATE (2026-08-27 night)**: the "as-is" caveat no longer applies. [dzannotti/Qwen3.8-Flash-Next-MTP-GGUF](https://huggingface.co/dzannotti/Qwen3.8-Flash-Next-MTP-GGUF) ships a **standalone MTP draft head** (`MTP-Q4_K_M.gguf`, 2.44 GB, standard quant) usable as `-md` next to any Flash-Next GGUF, plus a patch (`qwen4exp-mtp-draft-head.patch`) that adds the MTP graph to the qwen4exp branch — applied and built successfully on this machine (19:16, `--spec-type draft-mtp` supported). Author-measured on the same 128 GB class machine: **UD-Q4_K_XL 20.3 → 35.8 t/s (code), acceptance 0.90**. See [mtp-tracker.md](mtp-tracker.md) for run commands and the no-re-download injection script (`merge-mtp-shard.py`).
 
-### 3.4 External small draft (draft-simple) — ❌ full experiment with the 0.2B tiny model
+### 3.4 External small draft (draft-simple) — full experiment with the 0.2B tiny model
 
 **Candidate**: [inference-optimization/Qwen3.8-Flash-Next-0.2B-A0.2B](https://huggingface.co/inference-optimization/Qwen3.8-Flash-Next-0.2B-A0.2B)
 (0.33 GB, 0.16B params, keeps all GDN/QSA/PLE/MoE architecture components)
@@ -100,10 +100,10 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 | Step | Result |
 |---|---|
 | ① Download | 332 MB, seconds |
-| ② Convert with qwen4exp converter | ✅ success (113 tensors, 321 MB) — proves the converter also handles small new-arch models |
-| ③ Tokenizer consistency | ✅ **identical** (official vs tiny produce the exact same token-ID sequences for the same text) |
-| ④ Mount as --model-draft, measure | ❌ 24.1 t/s, no acceptance stats, no speedup |
-| ⑤ Standalone generation test | ❌ **blank output** — weights are randomly initialized / untrained |
+| ② Convert with qwen4exp converter | success (113 tensors, 321 MB) — proves the converter also handles small new-arch models |
+| ③ Tokenizer consistency | **identical** (official vs tiny produce the exact same token-ID sequences for the same text) |
+| ④ Mount as --model-draft, measure | 24.1 t/s, no acceptance stats, no speedup |
+| ⑤ Standalone generation test | **blank output** — weights are randomly initialized / untrained |
 
 **Verdict**: steps ①-③ all passed (format and tokenizer satisfy draft conditions); it dies at the last step — **the model was never trained, predictions are random, acceptance ≈ 0**.
 
@@ -120,7 +120,7 @@ At each position the target model's true output is a distribution over 248,044 t
 
 ```
 Random draft (untrained): acceptance ≈ 1/248,044 ≈ 0.0004%
-Trained draft:            acceptance ≈ 30-70% (same-family small model / distilled model)
+Trained draft: acceptance ≈ 30-70% (same-family small model / distilled model)
 ```
 
 When an untrained draft guesses k tokens, the target almost always **rejects the very first one** → speculation fully degrades, the draft-generation + verification overhead is pure waste → speed matches baseline or is slightly lower (measured 24.1 vs 24.2).
@@ -138,25 +138,25 @@ conclusion was overturned by that night's measurements):
 Speculation = draft source + engine execution path
 
 Draft source (all three paths were broken):
-  ├─ MTP self-spec  → GGUF has no MTP head (stripped by unsloth, measured)      ❌ → solved: dzannotti head
-  ├─ DFlash/DSpark  → GGUF has no DND draft tensors (flags accepted, silent)    ❌ → still none
-  └─ External draft → no trained same-tokenizer small model (0.2B untrained)    ❌ → still none (and pointless in MoE)
-  (ngram-simple only works on repetitive text, ≈0 for general)                  ⚠️ → solved: ngram-mod long spans
+ ├─ MTP self-spec → GGUF has no MTP head (stripped by unsloth, measured) → solved: dzannotti head
+ ├─ DFlash/DSpark → GGUF has no DND draft tensors (flags accepted, silent) → still none
+ └─ External draft → no trained same-tokenizer small model (0.2B untrained) → still none (and pointless in MoE)
+ (ngram-simple only works on repetitive text, ≈0 for general) → solved: ngram-mod long spans
 
 Engine execution path (incomplete then):
-  └─ llama.cpp qwen4exp MTP load/speculate = WIP (PR #27742 has no MTP commit)  ❌ → solved: bea3b12d tree + patch
+ └─ llama.cpp qwen4exp MTP load/speculate = WIP (PR #27742 has no MTP commit) → solved: bea3b12d tree + patch
 ```
 
 **What unlocked that night (all measured locally)**:
 
 | Method | Requires | Measured gain | Status |
 |---|---|---|---|
-| **ngram-mod** | built-in, zero cost | code copy 58.7 t/s (+135%) | ✅ unlocked |
-| **ngram-map-k / map-k4v** | built-in, zero cost | code copy **82.4 / 84.2 t/s** (+230%, acc 0.849) | ✅ unlocked (2026-08-28, +40% over mod) |
-| **MTP (dzannotti head)** | 2.44GB head + bea3b12d verified-tree patch | counting 57.3 / code 54.6 | ✅ unlocked |
-| **MTP + ngram-mod stacked** | the two above | code copy **83.0 t/s** (+232%) | ✅ unlocked |
-| Q4_K_XL + PLE-offload + stacked | download 111GB + PLE-offload flags | code 70.1 t/s (93.5% quality) | ✅ unlocked (⚠️ 8K only) |
-| SGLang + DFlash2 | full NVFP4 + mature runtime | — | ⏳ runtime unpublished, watchlisting |
+| **ngram-mod** | built-in, zero cost | code copy 58.7 t/s (+135%) | unlocked |
+| **ngram-map-k / map-k4v** | built-in, zero cost | code copy **82.4 / 84.2 t/s** (+230%, acc 0.849) | unlocked (2026-08-28, +40% over mod) |
+| **MTP (dzannotti head)** | 2.44GB head + bea3b12d verified-tree patch | counting 57.3 / code 54.6 | unlocked |
+| **MTP + ngram-mod stacked** | the two above | code copy **83.0 t/s** (+232%) | unlocked |
+| Q4_K_XL + PLE-offload + stacked | download 111GB + PLE-offload flags | code 70.1 t/s (93.5% quality) | unlocked ( 8K only) |
+| SGLang + DFlash2 | full NVFP4 + mature runtime | — | runtime unpublished, watchlisting |
 
 ---
 
@@ -179,14 +179,14 @@ reach 58-83 t/s by parallelizing the verify step, but the per-token latency sour
 
 ---
 
-## 7. Unlock roadmap: when can it get faster (2026-08-27 night: partially unlocked 🚀)
+## 7. Unlock roadmap: when can it get faster (2026-08-27 night: partially unlocked )
 
 | Trigger | What's needed | Expected gain | Current status |
 |---|---|---|---|
-| **ngram-map-k4v speculation** | nothing (built into llama.cpp) | **3.4× on copy-type tasks** (84.2 t/s) | ✅ **UNLOCKED** — zero extra memory; every token verified (since 2026-08-28, replaces ngram-mod) |
-| **MTP self-speculation** | dzannotti standalone MTP head + bea3b12d verified-tree patch | **2.2× on regular output** (57.3 t/s) | ✅ **UNLOCKED** — segfaults on 035e22731; must use the verified tree |
-| **MTP + ngram-map-k4v stacked** | the two above combined | **4.3× on copy-type tasks** (108.4 t/s) | ✅ **UNLOCKED** — `--spec-type draft-mtp,ngram-map-k4v` |
-| **SGLang/vLLM + NVFP4** | single-machine NVFP4 (Felliks/MaxLaurence PLE-on-NVMe / starkweatherdigital 109GB full-quant) | 17.9-42 single / 93-132 4-stream | ⏳ runnable but 109-120GB memory; full-quant weights uploading |
+| **ngram-map-k4v speculation** | nothing (built into llama.cpp) | **3.4× on copy-type tasks** (84.2 t/s) | **UNLOCKED** — zero extra memory; every token verified (since 2026-08-28, replaces ngram-mod) |
+| **MTP self-speculation** | dzannotti standalone MTP head + bea3b12d verified-tree patch | **2.2× on regular output** (57.3 t/s) | **UNLOCKED** — segfaults on 035e22731; must use the verified tree |
+| **MTP + ngram-map-k4v stacked** | the two above combined | **4.3× on copy-type tasks** (108.4 t/s) | **UNLOCKED** — `--spec-type draft-mtp,ngram-map-k4v` |
+| **SGLang/vLLM + NVFP4** | single-machine NVFP4 (Felliks/MaxLaurence PLE-on-NVMe / starkweatherdigital 109GB full-quant) | 17.9-42 single / 93-132 4-stream | runnable but 109-120GB memory; full-quant weights uploading |
 
 **Recommended production configs** (code/agentic workloads):
 ```bash
@@ -195,12 +195,12 @@ llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-map-k4v --jinja
 
 # Option B (strongest, 108 t/s code copy): MTP + ngram-map-k4v stacked (needs verified tree + MTP head)
 LLAMA_ATTN_ROT_DISABLE=1 llama-server -m model.gguf \
-  -md MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
-  -ngl 999 -fa on -ctk q8_0 -ctv q8_0
+ -md MTP-Q4_K_M.gguf -ngld 999 \
+ --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+ -ngl 999 -fa on -ctk q8_0 -ctv q8_0
 ```
 
-> ⚠️ Gain shape: ngram/MTP benefit scales with "how much of the output comes from the context
+> Gain shape: ngram/MTP benefit scales with "how much of the output comes from the context
 > or regular patterns" — tool-driven file edits, code completion, lists/args benefit hugely;
 > free-form prose gets almost nothing (~26 t/s). Measurement trap (0xBakeer): repeating the
 > same prompt inflates results 2.8× — vary prompts when benchmarking.
@@ -215,13 +215,13 @@ llama-bench -m model.gguf -ngl 999 -t 20 -p 0 -n 64 -r 2
 
 # Speculation tests: separate port + small context, don't disturb production
 llama-server -m model.gguf --port 8890 --ctx-size 16384 \
-  --spec-type <method> --jinja
+ --spec-type <method> --jinja
 
 # Read acceptance: "draft acceptance = X (accepted / generated)" in the server log
 # Read speed: timings.predicted_per_token_ms in the API response
 
 # Judge a draft model: run it standalone first, then compare tokenizers
-llama-cli -m draft.gguf -n 40        # blank/garbage output → untrained, discard
+llama-cli -m draft.gguf -n 40 # blank/garbage output → untrained, discard
 ```
 
 ---
@@ -229,13 +229,13 @@ llama-cli -m draft.gguf -n 40        # blank/garbage output → untrained, disca
 ## 9. Conclusions (major update 2026-08-27 night)
 
 1. **The "24 t/s ceiling" is broken**: ngram-mod (58.7 t/s code copy), MTP (57.3 t/s counting),
-   **MTP+ngram-mod stacked (83.0 t/s code copy, 3.3×)** — all measured locally, zero/near-zero extra memory
+ **MTP+ngram-mod stacked (83.0 t/s code copy, 3.3×)** — all measured locally, zero/near-zero extra memory
 2. **The gain tracks output predictability, not "is it code"**: tool-driven edits/completion/
-   structured output benefit hugely; free-form prose gets almost nothing (~26 t/s); measurement
-   must vary prompts (repeats inflate 2.8×)
+ structured output benefit hugely; free-form prose gets almost nothing (~26 t/s); measurement
+ must vary prompts (repeats inflate 2.8×)
 3. **MTP head injection works**: dzannotti standard-quant head (2.44 GB) + bea3b12d verified-tree
-   patch; merge-mtp-shard.py embeds it into any existing GGUF (~2% vs `-md`); tree 035e22731 is
-   incompatible (segfault)
+ patch; merge-mtp-shard.py embeds it into any existing GGUF (~2% vs `-md`); tree 035e22731 is
+ incompatible (segfault)
 4. **cafe-llama.cpp fork permanently abandoned**: twice OOM loading MTP drafts
 5. Full NVFP4 (101.7 GB, with MTP head) now exists (provsalt); SGLang route watchlisted
 6. All conclusions in this document come from local measurement; reproduction and feedback welcome

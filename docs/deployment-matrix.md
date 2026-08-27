@@ -10,37 +10,37 @@
 
 | Setup | Quant / quality | Single-stream | Concurrent aggregate | Context | Memory | Speculation | Status |
 |---|---|---|---|---|---|---|---|
-| **This machine: Q3+PLE+MTP+map-k4v (production)** | Q3_K_XL 90.4% | code 78.9 / prose 21.5 | **77.5 (2 concurrent)** | **262K** | **70GB** | MTP+map-k4v | ✅ measured here |
-| This machine: IQ3+MTP+map-k4v (speed) | IQ3_XXS 87.6% | **code 108.4** | 93-104 (2 concurrent, 8K) | 16K | 86GB | MTP+map-k4v | ✅ measured here |
-| This machine: IQ3+map-k4v (zero-dep) | IQ3_XXS 87.6% | code 84.2 / prose 27.8 | same | 16K | 83GB | map-k4v | ✅ measured here |
-| This machine: Q4+PLE+MTP+map-k4v (quality) | Q4_K_XL 93.5% | code 70.1 | — | **8K only** | 86GB | MTP+map-k4v | ✅ measured here (⚠️ short window) |
-| [0xBakeer](https://github.com/0xBakeer/qwen38-flash-next-spark) Q4+PLE+ngram-mod | Q4_K_XL 93.5% | code 46-74 / prose 22-23 | — (parallel 1) | 262K | ~77GB resident | ngram-mod | ✅ single-machine (NVMe-PLE pioneer) |
+| **This machine: Q3+PLE+MTP+map-k4v (production)** | Q3_K_XL 90.4% | code 78.9 / prose 21.5 | **77.5 (2 concurrent)** | **262K** | **70GB** | MTP+map-k4v | measured here |
+| This machine: IQ3+MTP+map-k4v (speed) | IQ3_XXS 87.6% | **code 108.4** | 93-104 (2 concurrent, 8K) | 16K | 86GB | MTP+map-k4v | measured here |
+| This machine: IQ3+map-k4v (zero-dep) | IQ3_XXS 87.6% | code 84.2 / prose 27.8 | same | 16K | 83GB | map-k4v | measured here |
+| This machine: Q4+PLE+MTP+map-k4v (quality) | Q4_K_XL 93.5% | code 70.1 | — | **8K only** | 86GB | MTP+map-k4v | measured here ( short window) |
+| [0xBakeer](https://github.com/0xBakeer/qwen38-flash-next-spark) Q4+PLE+ngram-mod | Q4_K_XL 93.5% | code 46-74 / prose 22-23 | — (parallel 1) | 262K | ~77GB resident | ngram-mod | single-machine (NVMe-PLE pioneer) |
 
 ## B. SGLang + NVFP4 route (runnable single-machine, PLE on disk)
 
 | Setup | Quant / quality | Single-stream | Concurrent aggregate | Context | Memory | Speculation | Status |
 |---|---|---|---|---|---|---|---|
-| [Felliks](https://github.com/Felliks/qwen38-flash-next-one-dgx-spark) RadixArk+PLE-on-NVMe | NVFP4 expert-only, 4-bit class | 32.7 (general) | **93-103 (4 streams)** | 262K | 120.45GB | MTP-213 | ✅ Ascent GX10 (same GB10) |
-| [MaxLaurence](https://github.com/MaxLaurence/qwen38-flash-next-sglang-dgx-spark) same idea | same | 17.9 prose / 42.1 copy | 39.3 / 132.2 (4 streams) | 262K | 109GB | NEXTN/MTP | ✅ DGX Spark measured |
-| RadixArk original 135GB | NVFP4 expert-only | — | — | — | **236GB** | — | ❌ needs GB300 |
-| Lewfkrad W4-PLE ~114GB | PLE packed W4 | — | — | — | ~114GB+overhead | — | ❌ SM120-validated, runtime unpublished |
+| [Felliks](https://github.com/Felliks/qwen38-flash-next-one-dgx-spark) RadixArk+PLE-on-NVMe | NVFP4 expert-only, 4-bit class | 32.7 (general) | **93-103 (4 streams)** | 262K | 120.45GB | MTP-213 | Ascent GX10 (same GB10) |
+| [MaxLaurence](https://github.com/MaxLaurence/qwen38-flash-next-sglang-dgx-spark) same idea | same | 17.9 prose / 42.1 copy | 39.3 / 132.2 (4 streams) | 262K | 109GB | NEXTN/MTP | DGX Spark measured |
+| RadixArk original 135GB | NVFP4 expert-only | — | — | — | **236GB** | — | needs GB300 |
+| Lewfkrad W4-PLE ~114GB | PLE packed W4 | — | — | — | ~114GB+overhead | — | SM120-validated, runtime unpublished |
 
 ## C. vLLM + full-NVFP4 route
 
 | Setup | Quant / quality | Single-stream | Concurrency | Context | Memory | Speculation | Status |
 |---|---|---|---|---|---|---|---|
-| [starkweatherdigital](https://huggingface.co/starkweatherdigital/qwen3.8-flash-next-nvfp4) 109GB | **full NVFP4 (PLE also 4-bit)** | **24.6 (MTP, 80% acc)** / 16.8 none | 16 seq | **32K** | ~120GB | MTP (built-in) | ⏳ measured on DGX Spark; weights uploading; public image |
-| provsalt 101.6GB | full NVFP4 (PLE NVFP4) | — | — | 4K | critical (14GB swap in its own test) | — | ❌ plugin unpublished |
+| [starkweatherdigital](https://huggingface.co/starkweatherdigital/qwen3.8-flash-next-nvfp4) 109GB | **full NVFP4 (PLE also 4-bit)** | **24.6 (MTP, 80% acc)** / 16.8 none | 16 seq | **32K** | ~120GB | MTP (built-in) | measured on DGX Spark; weights uploading; public image |
+| provsalt 101.6GB | full NVFP4 (PLE NVFP4) | — | — | 4K | critical (14GB swap in its own test) | — | plugin unpublished |
 
 ## D. Other platforms / not usable (for reference)
 
 | Setup | Note | Verdict |
 |---|---|---|
-| MLX series (jedisct1 oQ4e / Vontra / inferencerlabs / Sawfwair) | Apple Silicon only | ❌ wrong platform |
-| ROCmFP4 series (kingjones777 / agentionai / MrLordCat) | AMD Strix Halo only (Vulkan/ROCm) | ❌ wrong platform |
-| Baekpica mixed-quant 98.5GB + ds4 runtime | custom runtime (v0.6.3-dfm), validation gates not passed | ❌ unusable |
-| axiomofmind W4A16-NVFP4-GGUF 168GB | single-file GGUF, NVFP4 experts + BF16 attention | ❌ ~140GB even with PLE-offload |
-| PixelML Dual-DGX-Spark / tonyd2wild 2-machine | two-machine setups (latter: 50-55 t/s structured) | ❌ not single-machine |
+| MLX series (jedisct1 oQ4e / Vontra / inferencerlabs / Sawfwair) | Apple Silicon only | wrong platform |
+| ROCmFP4 series (kingjones777 / agentionai / MrLordCat) | AMD Strix Halo only (Vulkan/ROCm) | wrong platform |
+| Baekpica mixed-quant 98.5GB + ds4 runtime | custom runtime (v0.6.3-dfm), validation gates not passed | unusable |
+| axiomofmind W4A16-NVFP4-GGUF 168GB | single-file GGUF, NVFP4 experts + BF16 attention | ~140GB even with PLE-offload |
+| PixelML Dual-DGX-Spark / tonyd2wild 2-machine | two-machine setups (latter: 50-55 t/s structured) | not single-machine |
 | 27B + SGLang + DFlash2 | smaller-model reference 55.3 t/s | reference only |
 
 ## Full deployment steps (runnable setups)
@@ -50,31 +50,31 @@
 ```bash
 git clone https://github.com/Felliks/qwen38-flash-next-one-dgx-spark
 cd qwen38-flash-next-one-dgx-spark
-./run-spark.sh prepare   # docker build pinned image + download RadixArk (rev 7b71922…) + build 51.2GB PLE mmap + verify
-./run-spark.sh serve     # --memory 116g hard cap; SGLang MTP-213 (2 steps/top-k1/3 drafts)
-./run-spark.sh smoke / status / logs / stop   # http://127.0.0.1:8000/v1
+./run-spark.sh prepare # docker build pinned image + download RadixArk (rev 7b71922…) + build 51.2GB PLE mmap + verify
+./run-spark.sh serve # --memory 116g hard cap; SGLang MTP-213 (2 steps/top-k1/3 drafts)
+./run-spark.sh smoke / status / logs / stop # http://127.0.0.1:8000/v1
 ```
 
 ### B2. MaxLaurence (SGLang, recipe-pinned)
 
 ```bash
 git clone https://github.com/MaxLaurence/qwen38-flash-next-sglang-dgx-spark
-cd qwen38-flash-next-sglang-dgx-spark   # recipe.lock.json fully hash-pinned, 5 fail-closed source transforms
+cd qwen38-flash-next-sglang-dgx-spark # recipe.lock.json fully hash-pinned, 5 fail-closed source transforms
 ```
 
 ### C1. starkweatherdigital (vLLM, 109GB full quant)
 
 ```bash
-docker pull docker.io/jstarkg/vllm-gb10-flashnext:0.28-sm121-r3   # prebuilt image 9GB; wait for HF weights
+docker pull docker.io/jstarkg/vllm-gb10-flashnext:0.28-sm121-r3 # prebuilt image 9GB; wait for HF weights
 VLLM_PLE_NVFP4=1 vllm serve /path/to/flashnext-nvfp4 \
-  --served-model-name qwen3.8-flash-next --quantization modelopt_fp4 \
-  --moe-backend marlin --enforce-eager --gpu-memory-utilization 0.92 \
-  --max-model-len 32768 --max-num-batched-tokens 8192 --max-num-seqs 16 \
-  --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
-  --speculative-config '{"method":"qwen3_8_flash_next_mtp","num_speculative_tokens":1}'
+ --served-model-name qwen3.8-flash-next --quantization modelopt_fp4 \
+ --moe-backend marlin --enforce-eager --gpu-memory-utilization 0.92 \
+ --max-model-len 32768 --max-num-batched-tokens 8192 --max-num-seqs 16 \
+ --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+ --speculative-config '{"method":"qwen3_8_flash_next_mtp","num_speculative_tokens":1}'
 ```
 
-> ⚠️ All three are memory-critical (109-120/128GB, 8-12GB headroom): drop_caches, load-curve
+> All three are memory-critical (109-120/128GB, 8-12GB headroom): drop_caches, load-curve
 > monitoring and watchdogs before trying; compared to this repo's GGUF production recipe
 > (70GB, 51GB headroom), a personal single-machine setup should stay on GGUF.
 

@@ -11,24 +11,24 @@
 | 项 | 实测值 |
 |---|---|
 | 磁盘占用(三档模型)| Q3 90GB / IQ3 82GB / Q4 111GB(共 ~283GB,空闲 3.0TB) |
-| 运行时峰值 | Q3 配方 262K = **70GB** ≤ 115GB ✅(旧配置 102GB) |
-| 无加载反量化膨胀 | ✅ NVMe-PLE:`-lm mmap -ot per_layer_token_embd=CPU`,PLE 不驻留 |
+| 运行时峰值 | Q3 配方 262K = **70GB** ≤ 115GB (旧配置 102GB) |
+| 无加载反量化膨胀 | NVMe-PLE:`-lm mmap -ot per_layer_token_embd=CPU`,PLE 不驻留 |
 | 质量档位 | Q3 90.4% / IQ3 87.6% / Q4 93.5%(unsloth Divergence-300 数据) |
 
 ## 1. 三条运行路径(按优先级,全部本机实测)
 
-### 路径 A:Q3_K_XL 生产配方(首选,262K,78.9 t/s,70GB)🏆
+### 路径 A:Q3_K_XL 生产配方(首选,262K,78.9 t/s,70GB)
 
 ```bash
 # 引擎:~/llama-mtp-verified/build(bea3b12d + qwen4exp-mtp-draft-head.patch)
 LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
-  -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
-  -lm mmap -ot per_layer_token_embd=CPU \
-  -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
-  --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
-  -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
-  --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
-  --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
+ -m ~/models/Qwen3.8-Flash-Next-GGUF/UD-Q3_K_XL/Qwen3.8-Flash-Next-UD-Q3_K_XL-00001-of-00003.gguf \
+ -lm mmap -ot per_layer_token_embd=CPU \
+ -md ~/models/mtp-draft/dzannotti/Qwen3.8-Flash-Next-MTP-Q4_K_M.gguf -ngld 999 \
+ --spec-type draft-mtp,ngram-map-k4v --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+ -ngl 999 -fa on -ctk q8_0 -ctv q8_0 \
+ --ctx-size 262144 --parallel 2 --host 0.0.0.0 --port 8889 \
+ --temp 0.7 --top-p 0.80 --top-k 20 --min-p 0.0 --repeat-penalty 1.0 --presence-penalty 1.5 --jinja
 # 就绪后预热 PLE(一次 ~28s):
 # GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 ~/smalltask/hf_monitor/warm_table.py <模型分片1>
 ```
@@ -42,20 +42,20 @@ LLAMA_ATTN_ROT_DISABLE=1 ~/llama-mtp-verified/build/bin/llama-server \
 
 ### 路径 C:质量优先(Q4_K_XL,8K 下 70.1 t/s,93.5%)
 
-- ⚠️ **仅 8K 短窗口**(事故 5:262K 加载即整机冻结);大窗口请用路径 A
+- **仅 8K 短窗口**(事故 5:262K 加载即整机冻结);大窗口请用路径 A
 - 引擎/参数同上,模型换 `UD-Q4_K_XL-00001-of-00004.gguf`
 
 ### 简易方案(零依赖,ngram-map-k4v)
 
 ```bash
 ~/llama.cpp/build/bin/llama-server -m <任意分片1> -ngl 999 -t 20 \
-  --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
+ --spec-type ngram-map-k4v --jinja --ctx-size 262144 --port 8889
 ```
 
 ## 2. 构建步骤(已执行,记录备查)
 
 ```bash
-# MTP 路线(验证树 bea3b12d + 补丁)—— ⚠️ 035e22731 树与补丁不兼容(段错误)
+# MTP 路线(验证树 bea3b12d + 补丁)—— 035e22731 树与补丁不兼容(段错误)
 git clone ~/llama.cpp ~/llama-mtp-verified
 cd ~/llama-mtp-verified && git checkout bea3b12da
 git apply ~/smalltask/hf_monitor/dzannotti-mtp/qwen4exp-mtp-draft-head.patch
@@ -73,8 +73,8 @@ cmake --build build -j 20
 ```bash
 # 内嵌头(给任意分片 GGUF 附加 MTP 头,硬链接省盘)
 GGUF_PY=~/llama.cpp/gguf-py ~/ai-env/bin/python3 \
-  ~/projects/qwen38-flash-next-dgx-spark/patches/merge-mtp-shard.py \
-  <目标模型分片1> <MTP头gguf> <输出目录>
+ ~/projects/qwen38-flash-next-dgx-spark/patches/merge-mtp-shard.py \
+ <目标模型分片1> <MTP头gguf> <输出目录>
 # 然后 --spec-type draft-mtp 且不带 -md 运行;性能与 -md 差 ~2%
 ```
 
