@@ -128,14 +128,25 @@
 
 ### 5.3 Cross-reference (2026-08-27 night)
 
-| Setup | Code copy-edit | Prose | Extra memory |
-|---|---:|---:|---:|
-| IQ3_XXS baseline | 25.0 t/s | 25.4 t/s | 0 |
-| IQ3_XXS + ngram-mod | **58.7 t/s** | 26.1 t/s | **0 (free)** |
-| Q3_K_XL baseline (ref) | ~24-26 t/s | ~24 t/s | 0 |
-| 2×DGX Spark NVFP4 + MTP4 (community, tonyd2wild) | 50-55 t/s | ~33 t/s | two machines |
+| Setup | Code copy-edit | Prose | Counting | Memory | Quality |
+|---|---:|---:|---:|---:|---:|
+| IQ3_XXS baseline | 25.0 t/s | 25.4 | 26.2 | 83 GB | 87.6% |
+| IQ3_XXS + ngram-mod | **58.7** | 26.1 | 26.1 | 83 GB | 87.6% |
+| IQ3_XXS + MTP+ngram-mod | **83.0** 🚀 | 29.6 | 58.1 | 86 GB | 87.6% |
+| Q4_K_XL + PLE-offload baseline | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
+| Q4_K_XL + PLE + ngram-mod | 47.4 | 19.3 | 20.0 | **82 GB** | 93.5% |
+| Q4_K_XL + PLE + MTP+ngram-mod | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
+| 2×DGX Spark NVFP4 + MTP4 (community, tonyd2wild) | 50-55 t/s | ~33 | — | two machines | 4-bit class |
 
-> Single-Spark IQ3 + ngram-mod already exceeds the community's 2×DGX Spark NVFP4+MTP4 numbers (50-55 t/s) on structured output.
+**Q4_K_XL + NVMe-PLE key findings (0xBakeer recipe verified on this machine)**:
+- `-lm mmap -ot per_layer_token_embd=CPU`: the 51B PLE table (26.8 GiB) is served from the NVMe
+  page cache — **memory footprint 82 GB (IQ3-level, far below the official 112 GB requirement)**
+- Quality 93.5% (+3.1pp over Q3_K_XL, +5.9pp over IQ3_XXS); code copy with MTP+ngram-mod stacked
+  hits **70.1 t/s = 3.1× its own baseline**
+- Speed vs quality tradeoff: IQ3 stacked = 83.0 t/s (87.6%) vs Q4 stacked = 70.1 t/s (93.5%)
+- Warm-up: one sequential 26.8 GiB read (~28 s, 0.95 GiB/s); warm after the server is ready
+  (loading evicts the table); cold/warm difference is significant with speculation on
+- Cold load of the 4-shard Q4 takes ~4-5 min (3.5 min when download pages were still cached)
 
 > Full analysis (mechanism/math/causal chain/unlock roadmap) in **speculative-analysis.md**
 
@@ -187,10 +198,10 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --j
 
 ## 9. Summary (updated 2026-08-27 night)
 
-1. **UD-Q3_K_XL is the best value on a 128 GB machine** (90.4% quality / 90 GB memory / ample headroom); IQ3_XXS (87.6%) is the memory-saving alternative
-2. **262K context is effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
-3. **🚀 ngram-mod breaks the "24 t/s ceiling"**: code copy/edit tasks **25.0 → 58.7 t/s (+135%)**, zero extra memory, output verified token-by-token (unchanged); prose stays ~26 t/s
-   - Applicable shape = tool-driven editing (change one line / fix a bug in a given file) — exactly agentic workloads
-   - Usage: `llama-server ... --spec-type ngram-mod` (0xBakeer recipe; see speculative-analysis.md)
-4. **MTP route still blocked by tree-version incompatibility** (segfault on 035e22731; verified-tree bea3b12d rebuild in progress); cafe fork permanently abandoned (twice OOM)
-5. Full NVFP4 (101.7GB, with MTP head) now exists (provsalt) — critical fit on this machine, watchlisted
+1. **🚀 ngram-mod breaks the "24 t/s ceiling"**: code copy/edit **25.0 → 58.7 t/s (+135%)**, zero extra memory, output verified token-by-token; prose stays ~26 t/s
+2. **🚀 MTP+ngram-mod stacked**: IQ3_XXS code copy **83.0 t/s (3.3×)**, counting 58.1, prose 29.6 (verified tree bea3b12d + dzannotti head)
+3. **🚀 Q4_K_XL is now runnable via NVMe-PLE**: 82 GB memory (official requirement 112 GB), 93.5% quality; +MTP+ngram-mod code copy **70.1 t/s (3.1×)**
+   - Tradeoff: speed-first → IQ3 stacked (83 t/s / 87.6%); quality-first → Q4 stacked (70.1 t/s / 93.5%)
+4. **262K context is effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
+5. **MTP tree compatibility**: segfaults on 035e22731; cafe fork permanently abandoned (2× OOM); verified tree bea3b12d + standalone/embedded head work
+6. Full NVFP4 (101.7 GB, with MTP head) now exists (provsalt) — critical fit, watchlisted

@@ -61,6 +61,11 @@ convenience is the point, not speed.
 | + MTP (`-md` standalone head) | **57.3** | 25.2 | **54.6** | ~3 GB |
 | + MTP + ngram-mod | **58.1** | **29.6** | **83.0** 🚀 | ~3 GB |
 | + MTP (embedded head, merge script) | 56.3 | — | 53.6 | ~2.5 GB |
+| **Q4_K_XL + PLE-offload + MTP+ngram-mod** | 39.1 | 19.3 | **70.1** | ~4 GB (86 GB total) |
+
+> Q4 row: 93.5% quality (highest runnable level), NVMe-PLE keeps memory at 82 GB baseline;
+> code copy 70.1 = **3.1× its own no-spec baseline** (22.9). Speed-first → IQ3 (83.0);
+> quality-first → Q4 (70.1).
 
 - MTP head draft stats: acceptance 0.62-1.00, mean draft length 2.2-4.0 (MTP alone); with ngram-mod
   stacked, mean length on code rises to 10.8
