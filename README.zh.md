@@ -85,6 +85,7 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | ------------------------------------------------------------ | ------------------------------------- | --------- |
 | [docs/deploy_playbook.zh.md](docs/deploy_playbook.zh.md)           | 部署手册:验收公式、三条运行路径、质量红线                 | 想部署的人     |
 | [docs/deployment-matrix.zh.md](docs/deployment-matrix.zh.md) | 全市场单机部署方案总对比(A/B/C/D 四类,含所有公开方案)      | 想选型的人     |
+| [docs/nvfp4-recipes.zh.md](docs/nvfp4-recipes.zh.md)         | NVFP4 单机部署配方手册(Felliks/MaxLaurence/starkweatherdigital 完整步骤) | 想试 NVFP4 的人  |
 | [docs/benchmarks.zh.md](docs/benchmarks.zh.md)                     | 全套实测对比:量化档位/引擎/上下文/投机/原始 timings      | 想验证/对比的人  |
 | [docs/speculative-analysis.zh.md](docs/speculative-analysis.zh.md) | ⭐ 投机解码全景实测分析:五条路径逐一验证、接受率数学、因果链、解锁路线图 | 想提速/研究的人  |
 | [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md)                   | MTP 头追踪:llama.cpp PR 状态、注入方案、监控信号     | 想跟进加速进展的人 |
