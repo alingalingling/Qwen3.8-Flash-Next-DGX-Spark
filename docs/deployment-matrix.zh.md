@@ -42,6 +42,40 @@
 | PixelML Dual-DGX-Spark / tonyd2wild 双机 | 双机方案(后者结构化 50-55 t/s) | ❌ 非单机 |
 | 27B + SGLang + DFlash2 | 小模型参照 55.3 t/s | 参照(不同模型) |
 
+## 完整部署步骤(可跑方案)
+
+### B1. Felliks(SGLang,262K+MTP-213)
+
+```bash
+git clone https://github.com/Felliks/qwen38-flash-next-one-dgx-spark
+cd qwen38-flash-next-one-dgx-spark
+./run-spark.sh prepare   # docker build 固定镜像 + 下载 RadixArk(rev 7b71922…)+ 转 51.2GB PLE mmap + 256 行校验
+./run-spark.sh serve     # --memory 116g 硬上限;SGLang MTP-213(2 步/top-k1/3 草稿)
+./run-spark.sh smoke / status / logs / stop   # http://127.0.0.1:8000/v1
+```
+
+### B2. MaxLaurence(SGLang,recipe 固定)
+
+```bash
+git clone https://github.com/MaxLaurence/qwen38-flash-next-sglang-dgx-spark
+cd qwen38-flash-next-sglang-dgx-spark   # recipe.lock.json 全哈希固定,5 个 fail-closed 源转换
+```
+
+### C1. starkweatherdigital(vLLM,109GB 全量化)
+
+```bash
+docker pull docker.io/jstarkg/vllm-gb10-flashnext:0.28-sm121-r3   # 预构建镜像 9GB;等 HF 权重上传
+VLLM_PLE_NVFP4=1 vllm serve /path/to/flashnext-nvfp4 \
+  --served-model-name qwen3.8-flash-next --quantization modelopt_fp4 \
+  --moe-backend marlin --enforce-eager --gpu-memory-utilization 0.92 \
+  --max-model-len 32768 --max-num-batched-tokens 8192 --max-num-seqs 16 \
+  --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+  --speculative-config '{"method":"qwen3_8_flash_next_mtp","num_speculative_tokens":1}'
+```
+
+> ⚠️ 三个方案全部内存临界(109-120/128GB,余 8-12GB):尝试前 drop_caches、加载曲线监控、挂看门狗;
+> 与本仓库 GGUF 生产配方(70GB,余 51GB)相比余量小,个人单机首选 GGUF。
+
 ## 结论排名
 
 - **单机单请求(代码类)**:本机 Q3 生产配方 78.9(262K)/ IQ3 108.4(16K) > 0xBakeer 46-74 > Felliks/MaxLaurence 33-42 > starkweatherdigital 24.6

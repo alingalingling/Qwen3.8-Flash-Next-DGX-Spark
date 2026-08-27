@@ -43,6 +43,41 @@
 | PixelML Dual-DGX-Spark / tonyd2wild 2-machine | two-machine setups (latter: 50-55 t/s structured) | ❌ not single-machine |
 | 27B + SGLang + DFlash2 | smaller-model reference 55.3 t/s | reference only |
 
+## Full deployment steps (runnable setups)
+
+### B1. Felliks (SGLang, 262K+MTP-213)
+
+```bash
+git clone https://github.com/Felliks/qwen38-flash-next-one-dgx-spark
+cd qwen38-flash-next-one-dgx-spark
+./run-spark.sh prepare   # docker build pinned image + download RadixArk (rev 7b71922…) + build 51.2GB PLE mmap + verify
+./run-spark.sh serve     # --memory 116g hard cap; SGLang MTP-213 (2 steps/top-k1/3 drafts)
+./run-spark.sh smoke / status / logs / stop   # http://127.0.0.1:8000/v1
+```
+
+### B2. MaxLaurence (SGLang, recipe-pinned)
+
+```bash
+git clone https://github.com/MaxLaurence/qwen38-flash-next-sglang-dgx-spark
+cd qwen38-flash-next-sglang-dgx-spark   # recipe.lock.json fully hash-pinned, 5 fail-closed source transforms
+```
+
+### C1. starkweatherdigital (vLLM, 109GB full quant)
+
+```bash
+docker pull docker.io/jstarkg/vllm-gb10-flashnext:0.28-sm121-r3   # prebuilt image 9GB; wait for HF weights
+VLLM_PLE_NVFP4=1 vllm serve /path/to/flashnext-nvfp4 \
+  --served-model-name qwen3.8-flash-next --quantization modelopt_fp4 \
+  --moe-backend marlin --enforce-eager --gpu-memory-utilization 0.92 \
+  --max-model-len 32768 --max-num-batched-tokens 8192 --max-num-seqs 16 \
+  --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder \
+  --speculative-config '{"method":"qwen3_8_flash_next_mtp","num_speculative_tokens":1}'
+```
+
+> ⚠️ All three are memory-critical (109-120/128GB, 8-12GB headroom): drop_caches, load-curve
+> monitoring and watchdogs before trying; compared to this repo's GGUF production recipe
+> (70GB, 51GB headroom), a personal single-machine setup should stay on GGUF.
+
 ## Ranking
 
 - **Single-machine, single request (code-type)**: this machine Q3 production 78.9 (262K) / IQ3 108.4 (16K) > 0xBakeer 46-74 > Felliks/MaxLaurence 33-42 > starkweatherdigital 24.6
