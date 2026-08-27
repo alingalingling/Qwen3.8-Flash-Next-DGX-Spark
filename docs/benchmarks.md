@@ -133,9 +133,9 @@
 | IQ3_XXS baseline | 25.0 t/s | 25.4 | 26.2 | 83 GB | 87.6% |
 | IQ3_XXS + ngram-mod | **58.7** | 26.1 | 26.1 | 83 GB | 87.6% |
 | IQ3_XXS + MTP+ngram-mod | **83.0** 🚀 | 29.6 | 58.1 | 86 GB | 87.6% |
-| Q4_K_XL + PLE-offload baseline | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
+| Q4_K_XL + PLE-offload baseline (⚠️8K window only) | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
 | Q4_K_XL + PLE + ngram-mod | 47.4 | 19.3 | 20.0 | **82 GB** | 93.5% |
-| Q4_K_XL + PLE + MTP+ngram-mod | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
+| Q4_K_XL + PLE + MTP+ngram-mod (⚠️8K window only) | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
 | **Q3_K_XL + PLE + MTP+ngram (8K)** | **82.7** | 25.8 | 54.1 | **64 GB** | 90.4% |
 | **Q3_K_XL + PLE + MTP+ngram (128K)** | **79.2** | — | — | **68 GB** | 90.4% |
 | **Q3_K_XL + PLE + MTP+ngram (262K, production window)** | **78.9** | 21.5 | — | **70 GB** | 90.4% |
