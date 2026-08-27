@@ -53,12 +53,38 @@ head as an extra shard of **any existing split qwen4exp GGUF**:
 Measured: within a few percent of the `-md` form (34.5 vs 36.7 t/s on code) — the
 convenience is the point, not speed.
 
-## This machine's plan
+## This machine's results (2026-08-27 night, IQ3_XXS + dzannotti Q4_K_M head, verified tree bea3b12d)
 
-1. IQ3_XXS (82 GB) download in progress (~25 MB/s) → then the benchmark chain runs 4 groups:
-   IQ3 baseline / IQ3 + cafe fork + quimmedes draft / Q3_K_XL baseline / **IQ3 + official MTP head** (new group)
-2. MTP-Q4_K_M head (2.44 GB) downloading
-3. After validation, optionally inject the head into IQ3_XXS (or even Q3_K_XL) via merge-mtp-shard.py
+| Setup | A: counting 200 | B: prose 150 | C: code copy-edit | Extra memory |
+|---|---:|---:|---:|---:|
+| IQ3 baseline | 26.2 t/s | 25.4 t/s | 25.0 t/s | 0 |
+| + MTP (`-md` standalone head) | **57.3** | 25.2 | **54.6** | ~3 GB |
+| + MTP + ngram-mod | **58.1** | **29.6** | **83.0** 🚀 | ~3 GB |
+| + MTP (embedded head, merge script) | 56.3 | — | 53.6 | ~2.5 GB |
+
+- MTP head draft stats: acceptance 0.62-1.00, mean draft length 2.2-4.0 (MTP alone); with ngram-mod
+  stacked, mean length on code rises to 10.8
+- **MTP and ngram-mod are complementary**: MTP predicts regular output *outside* the context
+  (counting), ngram-mod copies from the context (code edit); stacked they hit **83.0 t/s = 3.3× baseline**
+- Combined usage: `--spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75`
+- Embedded head is within ~2% of the `-md` form; the convenience wins (saves 0.5 GB + one model handle)
+
+### ⚠️ Tree-version compatibility (important lesson)
+
+- ❌ **Patch segfaults on tree 035e22731** (standalone head / `-md` / embedded all crash at
+  load_model) — that tree's indexer-cache refactor is incompatible with the patch
+- ✅ **Patch is only verified on tree bea3b12d**: `git checkout bea3b12da && git apply
+  qwen4exp-mtp-draft-head.patch` then build works
+- This machine now keeps two builds: `~/llama.cpp/build` (035e22731, ngram-mod route) and
+  `~/llama-mtp-verified/build` (bea3b12d, MTP route)
+
+## This machine's plan (2026-08-27 night: main body done ✅)
+
+1. ✅ IQ3_XXS (82 GB) downloaded → benchmark chain done (IQ3 baseline / ngram-mod / official MTP head / Q3_K_XL baseline)
+2. ✅ MTP-Q4_K_M head (2.44 GB) downloaded; verified-tree rebuild OK; all MTP forms measured (table above)
+3. ✅ merge-mtp-shard.py injected the head into IQ3_XXS (UD-IQ3_XXS-MTP/, 4 shards), verified working
+4. ⏳ Q4_K_XL (111 GB) downloading → test 0xBakeer NVMe-PLE recipe (`-ot per_layer_token_embd=CPU -lm mmap` + ngram-mod)
+5. ❌ cafe-llama.cpp fork route permanently abandoned (twice OOM, overhead far beyond estimate)
 
 ## Monitor signals (tracked by monitor.py in this repo)
 

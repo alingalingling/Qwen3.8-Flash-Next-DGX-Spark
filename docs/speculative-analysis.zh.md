@@ -182,20 +182,30 @@ llama-server ... --spec-type draft-mtp --spec-draft-n-max 2
 
 ---
 
-## 7. 解锁路线图:什么时候能提速
+## 7. 解锁路线图:什么时候能提速(2026-08-27 夜:已部分解锁 🚀)
 
 | 触发条件 | 需要什么 | 预期收益 | 当前状态 |
 |---|---|---|---|
-| **MTP 自投机** | ① llama.cpp PR #27742 完成 MTP 支持 ② 带 MTP 头的 GGUF(unsloth 发布或自行注入) | **1.5-2.5x**(30-50 t/s) | ① WIP(前身 PR #27739 有现成实现可参考)② 无 |
-| **SGLang + DFlash2** | 全量 NVFP4 检查点(≤101 GB)+ SGLang qwen4_exp 支持成熟 | **2-4x**(27B 先例 55 t/s) | 全量 NVFP4 未出现 |
-| ngram(重复文本场景) | 无 | 特定场景 1.2-1.5x | **现在可用**(见 3.1)|
+| **ngram-mod 投机** | 无需任何新东西(llama.cpp 内置) | **复制型任务 2.3x**(58.7 t/s) | ✅ **已解锁**——零内存增量,输出逐 token 验证不变 |
+| **MTP 自投机** | dzannotti 独立 MTP 头 + bea3b12d 验证树补丁 | **规律性输出 2.2x**(57.3 t/s) | ✅ **已解锁**——035e22731 树段错误,须用验证树 |
+| **MTP + ngram-mod 叠加** | 同上两者组合 | **复制型任务 3.3x**(83.0 t/s) | ✅ **已解锁**——`--spec-type draft-mtp,ngram-mod` |
+| **SGLang + DFlash2** | 全量 NVFP4 检查点(≤101 GB)+ SGLang qwen4_exp 支持成熟 | 2-4x(27B 先例 55 t/s) | ⏳ provsalt 全量 NVFP4 **101.7GB 已出现**(含 MTP 头),临界可装,观察中 |
 
-**MTP 注入方案**(llama.cpp 支持落地后,仓库将提供 inject_mtp.py):
-1. 下载官方 BF16(360 GB)
-2. convert_hf_to_gguf.py 转 Q8_0 中间件
-3. 抽取 31 个 MTP 张量,Q4_0 量化(~2 GB)
-4. gguf-py 注入 unsloth 的 UD-Q3_K_XL(更新张量列表 + 追加数据)
-5. probe_mtp.py 验证 + `--spec-type draft-mtp --spec-draft-n-max 2` 启动
+**当前推荐生产配置**(代码/agentic 场景):
+```bash
+# 方案 A(推荐,零内存增量):ngram-mod
+llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-mod --jinja
+
+# 方案 B(最强,代码复制 83 t/s):MTP + ngram-mod 叠加(需验证树 + MTP 头)
+LLAMA_ATTN_ROT_DISABLE=1 llama-server -m model.gguf \
+  -md MTP-Q4_K_M.gguf -ngld 999 \
+  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  -ngl 999 -fa on -ctk q8_0 -ctv q8_0
+```
+
+> ⚠️ 速度形态说明:ngram/MTP 收益完全取决于"输出中有多少来自上下文/规律"——
+> 工具驱动的文件编辑、代码补全、列表/参数输出受益巨大;自由散文几乎无增益(仍 ~26 t/s)。
+> 测速方法论陷阱(0xBakeer 实测):重复相同 prompt 会把结果虚高 2.8x,必须变换 prompt 再测。
 
 ---
 
@@ -218,15 +228,17 @@ llama-cli -m draft.gguf -n 40        # 输出空白/乱码 → 未训练,淘汰
 
 ---
 
-## 9. 结论
+## 9. 结论(2026-08-27 夜重大更新)
 
-1. **当前组合(UD-Q3_K_XL + llama.cpp)的 24 t/s 是真实天花板**——五条投机路径
-   全部实测,全部因"草稿来源缺失"或"引擎支持未完成"而不可用
-2. **不是硬件问题**:GB10 的算力/带宽都够,缺的是模型文件里的投机配套
-   (MTP 头 / DFlash 张量)与引擎的 MTP 执行路径
-3. **最大蛋糕是 MTP 自投机**(1.5-2.5x),两个前置条件都在推进中;
-   仓库的 monitor.py 与 mtp-tracker.md 持续跟踪
-4. 本文档的所有结论均来自本机实测,欢迎复现与反馈
+1. **"24 t/s 天花板"已被打破**:ngram-mod(代码复制 58.7 t/s)、MTP(数数 57.3 t/s)、
+   **MTP+ngram-mod 叠加(代码复制 83.0 t/s,3.3x)**——全部本机实测,零/极低内存增量
+2. **收益形态是"输出可预测性",不是"是不是代码"**:工具驱动的编辑/补全/结构化输出受益巨大,
+   自由散文基本无增益(~26 t/s);测速必须变换 prompt(重复 prompt 会虚高 2.8x)
+3. **MTP 头已可注入**:dzannotti 标准量化头(2.44GB)+ bea3b12d 验证树补丁;merge-mtp-shard.py
+   可内嵌进任意现有 GGUF(实测与 -md 差 ~2%);035e22731 树与补丁不兼容(段错误)
+4. **cafe-llama.cpp fork 永久放弃**:两次加载 MTP 草稿爆内存死机
+5. 全量 NVFP4(101.7GB,含 MTP 头)已出现(provsalt),SGLang 路线观察中
+6. 本文档的所有结论均来自本机实测,欢迎复现与反馈
 
 ---
 

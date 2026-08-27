@@ -43,6 +43,19 @@ This repo documents and open-sources all tools and measurements for deploying it
 | Decode speed | **22-24 t/s** (GPU offload; CPU-only is 1.9 t/s) |
 | Memory | ~102 / 128 GB |
 
+## Speculative speedups (measured 2026-08-27 night, IQ3_XXS)
+
+| Setup | Code copy/edit | Prose | Extra memory |
+|---|---:|---:|---:|
+| Baseline (no speculation) | 25.0 t/s | 25.4 t/s | 0 |
+| **ngram-mod** (free) | **58.7 t/s** | 26.1 t/s | **0** |
+| **MTP + ngram-mod** (verified tree) | **83.0 t/s** | 29.6 t/s | ~3 GB |
+| Reference: 2×DGX Spark NVFP4+MTP4 (community) | 50-55 t/s | ~33 t/s | two machines |
+
+> 🚀 A single DGX Spark with IQ3_XXS + stacked speculation beats the community's two-machine
+> NVFP4+MTP4 setup on structured output. Details in [docs/benchmarks.md](docs/benchmarks.md)
+> and [docs/mtp-tracker.md](docs/mtp-tracker.md).
+
 ## Quant levels
 
 | Level | Size | Same-top-1% vs BF16 | Memory req. | Verdict @ 128 GB |
@@ -115,16 +128,21 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 
 ## Known findings
 
-1. **Speculative decoding is currently unavailable**: all five paths measured (no MTP head / no DFlash structure / no trained same-arch small draft / llama.cpp MTP support WIP) — 24 t/s is the current ceiling. Full analysis in docs/speculative-analysis.md.
+1. **🚀 Speculative decoding is now UNLOCKED (2026-08-27 night)**: ngram-mod gives a free 2.3×
+   on code-type tasks; **MTP head + ngram-mod stacked reaches 3.3× (83 t/s)**; prose stays ~26 t/s
+   (gain = output predictability). The old "24 t/s ceiling" finding is obsolete —
+   see docs/speculative-analysis.md.
 2. **Start background services with setsid**: prevents the terminal timeout from killing the service along with the command.
 3. **Open the context boldly**: QSA sparse KV keeps the 262K memory cost to a few GB; but **large windows slow down short-prompt processing** (36.5 vs 80.8 tok/s at 262K vs 128K) — use 128K for short conversations.
+4. **Memory-safety rules**: only one model resident at a time; the cafe-llama.cpp fork OOM'd twice (permanently abandoned); system watchdog (system_watchdog.sh, 5GB/5s) auto-starts via crontab @reboot.
 
 ## Roadmap
 
-- [ ] llama.cpp PR #27742 merge (upstream)
-- [ ] MTP support lands → provide inject_mtp.py (inject MTP head from official BF16)
+- [ ] llama.cpp PR #27742 merge (upstream; now 49 commits, still no MTP commit)
+- [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-mod = 83 t/s)
+- [ ] 0xBakeer NVMe-PLE recipe on Q4_K_XL (`-ot per_layer_token_embd=CPU -lm mmap`, downloading)
 - [ ] Evaluate Baekpica mixed-quant once validation gates pass (ds4 runtime)
-- [ ] SGLang/DFlash2 comparison once a full NVFP4 quant appears
+- [ ] SGLang/DFlash2 comparison with provsalt full NVFP4 (101.7 GB, includes MTP head; critical fit)
 
 ## Acknowledgements
 

@@ -49,6 +49,18 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | 解码速度 | **22-24 t/s**(GPU 卸载,纯 CPU 仅 1.9 t/s) |
 | 内存 | ~102 / 128 GB |
 
+## 投机提速(2026-08-27 夜实测,IQ3_XXS)
+
+| 方案 | 代码复制/编辑 | 散文 | 内存增量 |
+|---|---:|---:|---:|
+| 基线(无投机)| 25.0 t/s | 25.4 t/s | 0 |
+| **ngram-mod**(零成本)| **58.7 t/s** | 26.1 t/s | **0** |
+| **MTP + ngram-mod**(验证树)| **83.0 t/s** | 29.6 t/s | ~3 GB |
+| 对照:2×DGX Spark NVFP4+MTP4(社区)| 50-55 t/s | ~33 t/s | 双机 |
+
+> 🚀 单台 DGX Spark + IQ3_XXS + 组合投机,结构化输出已超越社区双机 NVFP4+MTP4 方案。
+> 详见 [docs/benchmarks.zh.md](docs/benchmarks.zh.md) 与 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md)。
+
 ## 量化档位
 
 | 档位                    | 大小           | 与 BF16 一致率 | 内存需求      | 128 GB 判定 |
@@ -122,16 +134,21 @@ python3 scripts/probe_mtp.py /path/to/model.gguf   # 或分片目录
 
 ## 已知结论
 
-1. **投机解码当前不可用**:五条路径全部实测验证(GGUF 无 MTP 头 / 无 DFlash 结构 / 无训练过的同架构小草稿 / llama.cpp MTP 支持 WIP)——24 t/s 是当前天花板。**完整实测分析见 docs/speculative-analysis.zh.md**
+1. **🚀 投机解码已解锁(2026-08-27 夜)**:ngram-mod 零成本提速代码类任务 2.3x;
+   **MTP 头 + ngram-mod 叠加达 3.3x(83 t/s)**;散文类 ~26 t/s 无增益(收益=输出可预测性)。
+   旧结论"24 t/s 是天花板"作废,详见 docs/speculative-analysis.zh.md
 2. **后台服务用 setsid 启动**:防止终端超时把服务一起杀掉
 3. **上下文大胆开**:QSA 稀疏 KV 让 262K 的内存增量只有几 GB;但**大窗口会拖慢短请求的 prompt 处理**(262K 下 36.5 vs 128K 下 80.8 tok/s),短对话场景建议 128K
+4. **内存安全铁律**:任何时候只允许一份模型驻留;cafe-llama.cpp fork 已两次爆内存死机,永久弃用;
+   系统看门狗 system_watchdog.sh(5GB/5s)开机自启
 
 ## 路线图
 
-- [ ] llama.cpp PR #27742 合并(上游)
-- [ ] MTP 支持落地 → 提供 inject_mtp.py(从官方 BF16 注入 MTP 头)
+- [ ] llama.cpp PR #27742 合并(上游;当前 49 commits,仍无 MTP 提交)
+- [x] MTP 支持落地 → 已用 dzannotti 头 + bea3b12d 验证树打通(MTP + ngram-mod 叠加 83 t/s)
+- [ ] 0xBakeer NVMe-PLE 方案实测(Q4_K_XL + `-ot per_layer_token_embd=CPU -lm mmap`,下载中)
 - [ ] Baekpica 混合量化版验证门通过后的适配评估(ds4 运行时)
-- [ ] 全量 NVFP4 出现后的 SGLang/DFlash2 对比
+- [ ] provsalt 全量 NVFP4(101.7GB,含 MTP 头)的 SGLang/DFlash2 对比(临界可装)
 
 ## 致谢
 

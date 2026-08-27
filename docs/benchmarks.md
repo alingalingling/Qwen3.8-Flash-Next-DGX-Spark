@@ -89,7 +89,9 @@
 
 ---
 
-## 5. Speculative decoding comparison (all measured; 24 t/s is the current ceiling)
+## 5. Speculative decoding comparison (all measured)
+
+### 5.0 Early tests (Q3_K_XL era, 2026-08-27 daytime)
 
 | Method | Measured decode | Acceptance | Active? | Failure reason |
 |---|---|---|---|---|
@@ -99,6 +101,41 @@
 | draft-dspark | 24.1 t/s | no stats | ❌ silent fallback | same |
 | draft-mtp | n/a | — | ❌ | GGUF has no MTP head (0/1224 tensors) |
 | 0.2B external draft | 24.1 t/s | no stats | ❌ | untrained, acceptance ≈ 0 |
+
+### 5.1 IQ3_XXS full benchmark (2026-08-27 night, mtp_bench_safe.sh, ctx 16384)
+
+| Task | IQ3 baseline | IQ3 + ngram-mod | Notes |
+|---|---:|---:|---|
+| A: counting 200 tokens (novel output) | 26.2 t/s | 26.1 t/s | ngram drafts only from context; expected no gain |
+| B: prose 150 tokens | 25.4 t/s | 26.1 t/s | no gain (expected) |
+| **C: code copy-edit 500 tokens (copy-heavy)** | **25.0 t/s** | **58.7 t/s** | **+135% (2.35x)** |
+| prompt (test C) | 387.2 tok/s | 386.7 tok/s | unaffected by speculation |
+
+> **ngram-mod key data**: draft acceptance = 0.56641 (145/256), mean draft length **37.25 tokens**
+> — long-span acceptance is the mechanism (0xBakeer): in top-10/512 MoE a small draft model cannot
+> amortize weight reads, but ngram-mod accepts 37-60 token spans, amortizing over the verify step.
+> **Zero extra memory** (no draft model); speculation is exact (every token verified, output unchanged).
+
+### 5.2 MTP (dzannotti official route) status
+
+- 2.44GB standard Q4_K_M MTP head + `qwen4exp-mtp-draft-head.patch` ready
+- ❌ **Current tree (035e22731) + patch → segfault**: standalone head, `-md` draft mode and embedded
+  head all segfault at load_model — the patch is only verified on tree bea3b12d; the indexer-cache
+  refactor in 035e22731 is incompatible
+- 🔧 Rebuilding on the verified tree bea3b12d (in progress); will re-test when done
+- ⚠️ **cafe-llama.cpp fork permanently abandoned**: twice blew memory loading MTP drafts (90GB and
+  82GB main models), overhead far beyond the documented 10-15GB
+
+### 5.3 Cross-reference (2026-08-27 night)
+
+| Setup | Code copy-edit | Prose | Extra memory |
+|---|---:|---:|---:|
+| IQ3_XXS baseline | 25.0 t/s | 25.4 t/s | 0 |
+| IQ3_XXS + ngram-mod | **58.7 t/s** | 26.1 t/s | **0 (free)** |
+| Q3_K_XL baseline (ref) | ~24-26 t/s | ~24 t/s | 0 |
+| 2×DGX Spark NVFP4 + MTP4 (community, tonyd2wild) | 50-55 t/s | ~33 t/s | two machines |
+
+> Single-Spark IQ3 + ngram-mod already exceeds the community's 2×DGX Spark NVFP4+MTP4 numbers (50-55 t/s) on structured output.
 
 > Full analysis (mechanism/math/causal chain/unlock roadmap) in **speculative-analysis.md**
 
@@ -148,9 +185,12 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <method> --j
 
 ---
 
-## 9. Summary
+## 9. Summary (updated 2026-08-27 night)
 
-1. **UD-Q3_K_XL is the best value on a 128 GB machine** (90.4% quality / 90 GB memory / ample headroom)
+1. **UD-Q3_K_XL is the best value on a 128 GB machine** (90.4% quality / 90 GB memory / ample headroom); IQ3_XXS (87.6%) is the memory-saving alternative
 2. **262K context is effectively free** (architecture dividend), but large windows slow short-prompt prefill (implementation tax + architecture tax)
-3. **22-24 t/s decode is the current ceiling**; bottlenecks are PLE lookup latency + serial GDN + small MoE GEMMs
-4. **Speedup path: MTP self-speculation (1.5-2.5×) → SGLang DFlash2 (2-4×)**; prereqs tracked in mtp-tracker.md
+3. **🚀 ngram-mod breaks the "24 t/s ceiling"**: code copy/edit tasks **25.0 → 58.7 t/s (+135%)**, zero extra memory, output verified token-by-token (unchanged); prose stays ~26 t/s
+   - Applicable shape = tool-driven editing (change one line / fix a bug in a given file) — exactly agentic workloads
+   - Usage: `llama-server ... --spec-type ngram-mod` (0xBakeer recipe; see speculative-analysis.md)
+4. **MTP route still blocked by tree-version incompatibility** (segfault on 035e22731; verified-tree bea3b12d rebuild in progress); cafe fork permanently abandoned (twice OOM)
+5. Full NVFP4 (101.7GB, with MTP head) now exists (provsalt) — critical fit on this machine, watchlisted

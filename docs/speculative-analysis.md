@@ -162,20 +162,31 @@ Measured 24 t/s; the gap comes from three fixed-latency sources:
 
 ---
 
-## 7. Unlock roadmap: when can it get faster
+## 7. Unlock roadmap: when can it get faster (2026-08-27 night: partially unlocked 🚀)
 
 | Trigger | What's needed | Expected gain | Current status |
 |---|---|---|---|
-| **MTP self-speculation** | ① llama.cpp PR #27742 finishes MTP support ② GGUF with MTP head (unsloth release or self-injection) | **1.5-2.5×** (30-50 t/s) | ① WIP (predecessor PR #27739 has a ready implementation to reference) ② none |
-| **SGLang + DFlash2** | full NVFP4 checkpoint (≤101 GB) + mature SGLang qwen4_exp support | **2-4×** (27B precedent: 55 t/s) | no full NVFP4 yet |
-| ngram (repetitive text) | nothing | 1.2-1.5× for specific workloads | **available now** (see 3.1) |
+| **ngram-mod speculation** | nothing (built into llama.cpp) | **2.3× on copy-type tasks** (58.7 t/s) | ✅ **UNLOCKED** — zero extra memory; every token verified, output unchanged |
+| **MTP self-speculation** | dzannotti standalone MTP head + bea3b12d verified-tree patch | **2.2× on regular output** (57.3 t/s) | ✅ **UNLOCKED** — segfaults on 035e22731; must use the verified tree |
+| **MTP + ngram-mod stacked** | the two above combined | **3.3× on copy-type tasks** (83.0 t/s) | ✅ **UNLOCKED** — `--spec-type draft-mtp,ngram-mod` |
+| **SGLang + DFlash2** | full NVFP4 checkpoint (≤101 GB) + mature SGLang qwen4_exp support | 2-4× (27B precedent: 55 t/s) | ⏳ provsalt full NVFP4 **101.7 GB now exists** (with MTP head), critical fit, watchlisting |
 
-**MTP injection plan** (after llama.cpp support lands, the repo will provide inject_mtp.py):
-1. Download official BF16 (360 GB)
-2. convert_hf_to_gguf.py to a Q8_0 intermediate
-3. Extract the 31 MTP tensors, quantize to Q4_0 (~2 GB)
-4. Inject into unsloth's UD-Q3_K_XL with gguf-py (update tensor list + append data)
-5. Verify with probe_mtp.py, then launch with `--spec-type draft-mtp --spec-draft-n-max 2`
+**Recommended production configs** (code/agentic workloads):
+```bash
+# Option A (recommended, zero extra memory): ngram-mod
+llama-server -m model.gguf -ngl 999 -t 20 --spec-type ngram-mod --jinja
+
+# Option B (strongest, 83 t/s code copy): MTP + ngram-mod stacked (needs verified tree + MTP head)
+LLAMA_ATTN_ROT_DISABLE=1 llama-server -m model.gguf \
+  -md MTP-Q4_K_M.gguf -ngld 999 \
+  --spec-type draft-mtp,ngram-mod --spec-draft-n-max 3 --spec-draft-p-min 0.75 \
+  -ngl 999 -fa on -ctk q8_0 -ctv q8_0
+```
+
+> ⚠️ Gain shape: ngram/MTP benefit scales with "how much of the output comes from the context
+> or regular patterns" — tool-driven file edits, code completion, lists/args benefit hugely;
+> free-form prose gets almost nothing (~26 t/s). Measurement trap (0xBakeer): repeating the
+> same prompt inflates results 2.8× — vary prompts when benchmarking.
 
 ---
 
@@ -198,12 +209,19 @@ llama-cli -m draft.gguf -n 40        # blank/garbage output → untrained, disca
 
 ---
 
-## 9. Conclusions
+## 9. Conclusions (major update 2026-08-27 night)
 
-1. **24 t/s for the current combo (UD-Q3_K_XL + llama.cpp) is a real ceiling** — all five speculation paths measured, all unusable due to "missing draft source" or "engine support incomplete"
-2. **It's not a hardware problem**: GB10 has enough compute and bandwidth; what's missing is the speculation support in the model file (MTP head / DFlash tensors) and the engine's MTP execution path
-3. **The biggest prize is MTP self-speculation** (1.5-2.5×); both prereqs are moving; the repo's monitor.py and mtp-tracker.md keep tracking
-4. All conclusions in this document come from local measurement; reproduction and feedback welcome
+1. **The "24 t/s ceiling" is broken**: ngram-mod (58.7 t/s code copy), MTP (57.3 t/s counting),
+   **MTP+ngram-mod stacked (83.0 t/s code copy, 3.3×)** — all measured locally, zero/near-zero extra memory
+2. **The gain tracks output predictability, not "is it code"**: tool-driven edits/completion/
+   structured output benefit hugely; free-form prose gets almost nothing (~26 t/s); measurement
+   must vary prompts (repeats inflate 2.8×)
+3. **MTP head injection works**: dzannotti standard-quant head (2.44 GB) + bea3b12d verified-tree
+   patch; merge-mtp-shard.py embeds it into any existing GGUF (~2% vs `-md`); tree 035e22731 is
+   incompatible (segfault)
+4. **cafe-llama.cpp fork permanently abandoned**: twice OOM loading MTP drafts
+5. Full NVFP4 (101.7 GB, with MTP head) now exists (provsalt); SGLang route watchlisted
+6. All conclusions in this document come from local measurement; reproduction and feedback welcome
 
 ---
 
