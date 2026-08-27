@@ -43,7 +43,7 @@ This repo documents and open-sources all tools and measurements for deploying it
 | Decode speed | **22-24 t/s** (GPU offload; CPU-only is 1.9 t/s) |
 | Memory | ~102 / 128 GB |
 
-## Speculative speedups (measured 2026-08-27 night, IQ3_XXS / Q4_K_XL)
+## Speculative speedups (measured 2026-08-27 night)
 
 | Setup | Code copy/edit | Prose | Memory | Quality |
 |---|---:|---:|---:|---:|
@@ -51,12 +51,14 @@ This repo documents and open-sources all tools and measurements for deploying it
 | **ngram-mod** (free) | **58.7 t/s** | 26.1 t/s | 83 GB | 87.6% |
 | **MTP + ngram-mod** (verified tree) | **83.0 t/s** | 29.6 t/s | 86 GB | 87.6% |
 | **Q4_K_XL + PLE-offload + MTP+ngram** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
+| **🏆 Q3_K_XL + PLE + MTP+ngram (262K production)** | **78.9 t/s** | 21.5 t/s | **70 GB** | 90.4% |
 | Reference: 2×DGX Spark NVFP4+MTP4 (community) | 50-55 t/s | ~33 t/s | two machines | 4-bit class |
 
 > 🚀 A single DGX Spark with stacked speculation beats the community's two-machine NVFP4+MTP4
-> setup on structured output. Q4_K_XL fits via NVMe-PLE (`-ot per_layer_token_embd=CPU -lm mmap`)
-> at 82 GB (official requirement: 112 GB). Details in [docs/benchmarks.md](docs/benchmarks.md)
-> and [docs/mtp-tracker.md](docs/mtp-tracker.md).
+> setup on structured output. NVMe-PLE (`-ot per_layer_token_embd=CPU -lm mmap`) serves the PLE
+> table from the NVMe page cache: Q4_K_XL at 82 GB (official requirement 112 GB), Q3_K_XL at
+> 70 GB (262K window). Details in [docs/benchmarks.md](docs/benchmarks.md) and
+> [docs/mtp-tracker.md](docs/mtp-tracker.md).
 
 ## Quant levels
 

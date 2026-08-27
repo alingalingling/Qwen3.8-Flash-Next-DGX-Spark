@@ -135,7 +135,14 @@
 | Q4_K_XL + PLE-offload 基线 | 22.9 | 20.1 | 20.0 | **82 GB** | 93.5% |
 | Q4_K_XL + PLE + ngram-mod | 47.4 | 19.3 | 20.0 | **82 GB** | 93.5% |
 | Q4_K_XL + PLE + MTP+ngram-mod | **70.1** | 19.3 | 39.1 | 86 GB | **93.5%** |
+| **Q3_K_XL + PLE + MTP+ngram(8K)** | **82.7** | 25.8 | 54.1 | **64 GB** | 90.4% |
+| **Q3_K_XL + PLE + MTP+ngram(128K)** | **79.2** | — | — | **68 GB** | 90.4% |
+| **Q3_K_XL + PLE + MTP+ngram(262K,生产窗口)** | **78.9** | 21.5 | — | **70 GB** | 90.4% |
 | 2×DGX Spark NVFP4 + MTP4(社区,tonyd2wild)| 50-55 t/s | ~33 | — | 双机 | 4-bit 级 |
+
+**🏆 2026-08-27 终版生产推荐:Q3_K_XL + NVMe-PLE + MTP+ngram-mod**
+- 内存 **70GB(262K,原 102GB)**,余量 51GB;代码复制 **78.9 t/s(262K)/ 82.7(8K)**,是旧配置(24 t/s)的 **3.3 倍**
+- 三个窗口(8K/128K/262K)全部验证可用;质量 90.4% 不变(投机逐 token 验证,输出精确)
 
 **Q4_K_XL + NVMe-PLE 关键结论(0xBakeer 方案实测验证)**:
 - `-lm mmap -ot per_layer_token_embd=CPU`:51B PLE 表(26.8GiB)由 NVMe 页缓存服务,**内存占用 82GB(≈IQ3 水平,远低于官方 112GB 需求)**
@@ -194,12 +201,15 @@ llama-server -m model.gguf --port 8890 --ctx-size 16384 --spec-type <方案> --j
 
 ---
 
-## 9. 结论速览(2026-08-27 夜更新)
+## 9. 结论速览(2026-08-27 夜终版)
 
-1. **🚀 ngram-mod 打破"24 t/s 天花板"**:代码复制/编辑类任务 **25.0 → 58.7 t/s(+135%)**,零内存增量,输出逐 token 验证不变;散文类 ~26 t/s 不变
-2. **🚀 MTP+ngram-mod 叠加**:IQ3_XXS 代码复制 **83.0 t/s(3.3x)**、数数 58.1、散文 29.6(验证树 bea3b12d + dzannotti 头)
-3. **🚀 Q4_K_XL 借助 NVMe-PLE 可跑**:82GB 内存(官方需求 112GB),质量 93.5%;+MTP+ngram-mod 代码复制 **70.1 t/s(3.1x)**
+1. **🏆 终版生产推荐:Q3_K_XL + NVMe-PLE + MTP+ngram-mod**(262K 窗口)
+   - 代码复制 **78.9 t/s** = 旧配置(24 t/s)的 **3.3 倍**;内存 **70GB**(原 102GB),余量 51GB
+   - 命令:见 docs/mtp-tracker.zh.md(方案 B + PLE 参数 + warm_table.py 预热)
+2. **🚀 ngram-mod 打破"24 t/s 天花板"**:代码复制/编辑类任务 **25.0 → 58.7 t/s(+135%)**,零内存增量,输出逐 token 验证不变;散文类 ~26 t/s 不变
+3. **🚀 MTP+ngram-mod 叠加**:IQ3_XXS 代码复制 **83.0 t/s(3.3x)**、数数 58.1、散文 29.6(验证树 bea3b12d + dzannotti 头)
+4. **🚀 Q4_K_XL 借助 NVMe-PLE 可跑**:82GB 内存(官方需求 112GB),质量 93.5%;+MTP+ngram-mod 代码复制 **70.1 t/s(3.1x)**
    - 取舍:速度优先 → IQ3 组合投机(83 t/s/87.6%);质量优先 → Q4 组合投机(70.1 t/s/93.5%)
-4. **262K 上下文免费**(架构红利),但大窗口会拖慢短提示词 prefill(实现税+架构税)
-5. **MTP 路线树兼容性**:035e22731 段错误,cafe fork 永久放弃(两次 OOM);验证树 bea3b12d + 独立/内嵌头可用
-6. 全量 NVFP4(101.7GB,含 MTP 头)已出现(provsalt),本机临界可装,列入观察
+5. **262K 上下文免费**(架构红利),但大窗口会拖慢短提示词 prefill(实现税+架构税)
+6. **MTP 路线树兼容性**:035e22731 段错误,cafe fork 永久放弃(两次 OOM);验证树 bea3b12d + 独立/内嵌头可用
+7. 全量 NVFP4(101.7GB,含 MTP 头)已出现(provsalt),本机临界可装,列入观察

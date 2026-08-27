@@ -49,7 +49,7 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | 解码速度 | **22-24 t/s**(GPU 卸载,纯 CPU 仅 1.9 t/s) |
 | 内存 | ~102 / 128 GB |
 
-## 投机提速(2026-08-27 夜实测,IQ3_XXS / Q4_K_XL)
+## 投机提速(2026-08-27 夜实测)
 
 | 方案 | 代码复制/编辑 | 散文 | 内存 | 质量 |
 |---|---:|---:|---:|---:|
@@ -57,10 +57,12 @@ GDN 线性注意力 + QSA 稀疏注意力 + 51B PLE n-gram 查表,262K 原生上
 | **ngram-mod**(零成本)| **58.7 t/s** | 26.1 t/s | 83 GB | 87.6% |
 | **MTP + ngram-mod**(验证树)| **83.0 t/s** | 29.6 t/s | 86 GB | 87.6% |
 | **Q4_K_XL + PLE-offload + MTP+ngram** | **70.1 t/s** | 19.3 t/s | 86 GB | **93.5%** |
+| **🏆 Q3_K_XL + PLE + MTP+ngram(262K 生产)** | **78.9 t/s** | 21.5 t/s | **70 GB** | 90.4% |
 | 对照:2×DGX Spark NVFP4+MTP4(社区)| 50-55 t/s | ~33 t/s | 双机 | 4-bit 级 |
 
 > 🚀 单台 DGX Spark + 组合投机,结构化输出已超越社区双机 NVFP4+MTP4 方案。
-> Q4_K_XL 借助 NVMe-PLE(`-ot per_layer_token_embd=CPU -lm mmap`)把内存压到 82GB(官方需求 112GB)。
+> NVMe-PLE(`-ot per_layer_token_embd=CPU -lm mmap`)把 PLE 表放 NVMe 页缓存:
+> Q4_K_XL 内存 82GB(官方需求 112GB)、Q3_K_XL 仅 70GB(262K 窗口)。
 > 详见 [docs/benchmarks.zh.md](docs/benchmarks.zh.md) 与 [docs/mtp-tracker.zh.md](docs/mtp-tracker.zh.md)。
 
 ## 量化档位
