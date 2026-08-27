@@ -148,11 +148,11 @@ python3 scripts/probe_mtp.py /path/to/model.gguf   # 或分片目录
 
 ## 路线图
 
-- [ ] llama.cpp PR #27742 合并(上游;当前 49 commits,仍无 MTP 提交)
+- [ ] llama.cpp PR #27742 合并(上游;当前 54 commits,仍无 MTP 提交)
 - [x] MTP 支持落地 → 已用 dzannotti 头 + bea3b12d 验证树打通(MTP + ngram-mod 叠加 83 t/s)
-- [ ] 0xBakeer NVMe-PLE 方案实测(Q4_K_XL + `-ot per_layer_token_embd=CPU -lm mmap`,下载中)
+- [x] 0xBakeer NVMe-PLE 方案实测(Q4_K_XL 82GB 可跑;终版生产配方 Q3 78.9 t/s @262K/70GB)
 - [ ] Baekpica 混合量化版验证门通过后的适配评估(ds4 运行时)
-- [ ] provsalt 全量 NVFP4(101.7GB,含 MTP 头)的 SGLang/DFlash2 对比(临界可装)
+- [ ] 全量 NVFP4:provsalt(101.6GB,PLE 也 NVFP4)/Lewfkrad W4-PLE/4p89 均已出现,但运行时未公开/未验证,**不可落地**;触发条件见方案 md 10.2
 
 ## 致谢
 

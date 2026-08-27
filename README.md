@@ -142,11 +142,11 @@ Dual-channel HF scan (official quantized tag + name search), auto-classified as
 
 ## Roadmap
 
-- [ ] llama.cpp PR #27742 merge (upstream; now 49 commits, still no MTP commit)
+- [ ] llama.cpp PR #27742 merge (upstream; now 54 commits, still no MTP commit)
 - [x] MTP support → done locally via dzannotti head + bea3b12d verified tree (MTP+ngram-mod = 83 t/s)
-- [ ] 0xBakeer NVMe-PLE recipe on Q4_K_XL (`-ot per_layer_token_embd=CPU -lm mmap`, downloading)
+- [x] 0xBakeer NVMe-PLE recipe verified (Q4_K_XL at 82 GB; final production recipe Q3 = 78.9 t/s @262K / 70 GB)
 - [ ] Evaluate Baekpica mixed-quant once validation gates pass (ds4 runtime)
-- [ ] SGLang/DFlash2 comparison with provsalt full NVFP4 (101.7 GB, includes MTP head; critical fit)
+- [ ] Full NVFP4: provsalt (101.6 GB, PLE also NVFP4) / Lewfkrad W4-PLE / 4p89 all appeared, but runtimes are unpublished/unverified — not usable yet; triggers tracked in the plan doc §10.2
 
 ## Acknowledgements
 
